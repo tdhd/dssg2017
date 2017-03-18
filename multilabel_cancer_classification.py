@@ -25,7 +25,7 @@ def classify_cancer(fn = "/Users/felix/Data/dssg-cancer/features/features.csv"):
         warnings.simplefilter("ignore")
         # train a classifier
         print("Training classifier")
-        clf = OneVsRestClassifier(SGDClassifier())
+        clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         param_grid = {
             "estimator__alpha": [1e-8,1e-5,1e-4,1e-2],
             "estimator__n_iter": [5,10,20]
