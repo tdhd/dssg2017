@@ -1,11 +1,8 @@
 import pandas as pd
 import numpy as np
-import csv
 
-not_found = []
-
-path_for_translation_labels = 'cancer_data/information/translations-labels.csv'   #path of the .csv translation file provided by the data ambassadors
-path_for_manual_transtable = 'classification_dictionary.csv'        # path of the .csv file   that was filled manually by Marie
+#path_for_translation_labels = 'cancer_data/information/translations-labels.csv'   #path of the .csv translation file provided by the data ambassadors
+#path_for_manual_transtable = 'classification_dictionary.csv'        # path of the .csv file   that was filled manually by Marie
 
 def clean_classification(class_series, trans_path, manual_trans_path):
 
@@ -72,7 +69,7 @@ def clean_levels(s_list,trans_dict):
         if len(ts) > 2:  ## here cancer applies to more than one bodyparts.. sort them alphabetically
             bodystring = ','.join(sorted(map(lambda x: x.lower(),ts[:-1])))        
             old_class = ts[-1]                        
-        else:
+        else:   #otherwise there is only one bodypart
             bodypart = ts[0]
             old_class = ts[1]
             
@@ -81,14 +78,12 @@ def clean_levels(s_list,trans_dict):
         
         if len(ocs) == 1:
             new_class = old_class
-            not_found.append(old_class)
             
         elif len(ocs) == 2:
             if trans_dict.has_key(old_class):
                 new_class = trans_dict[old_class]
             else:
                 new_class = old_class
-                not_found.append(old_class)
 
         elif len(ocs) > 2:
             first = ocs[0] + '-' + ocs[1]            
@@ -102,22 +97,9 @@ def clean_levels(s_list,trans_dict):
                 new_class = trans_dict[first]
             else:
                 new_class = old_class
-                not_found.append(old_class)
                     
         new_list.append(ts[0] + ',' + new_class)
 
     return new_list
+         
 
-        
-df = pd.read_csv('cancer_data/features/features.csv')
-
-#df['cleaned_classification'] = df.classifications.apply(tokenizeCancerLabels)
-
-ns = clean_classification(df.classifications,'cancer_data/information/translations-labels.csv','classification_dictionary.csv')
-
-newfile = open('classification_not_found.csv','w')
-
-for nf_tag in np.unique(not_found):
-    newfile.write(nf_tag + '\n')
-newfile.close()
-#,'1-gen': '1-koerper', '1-horm':'1-koerper', '1-rauch': '1-ps', '1-canna': '1-ps','1-diab': '1-erk','1-infekt': '1-erk', '3-tu-marker': '3-lab','3-bios': '3-lab'}
