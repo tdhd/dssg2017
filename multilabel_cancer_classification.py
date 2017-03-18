@@ -48,6 +48,12 @@ def classify_cancer(fn = "/Users/felix/Data/dssg-cancer/features/features.csv"):
         metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelNames,s) for s in scorers}
     # dump results
     json.dump(metrics,gzip.open("multilabel_classification_metrics.json","wt"))
+    predictions = classif.predict_proba(X)
+    predictionsDF = pd.concat([df, pd.DataFrame(np.hstack([predictions,abs(predictions-.5)))],
+     axis=1, ignore_index=True)
+    predCols = ["probability-%s"%c for c in labelNames]
+    marginCols = ["distToMargin-%s"%c for c in labelNames]
+    predictionsDF.columns = df.columns.tolist() + predCols + marginCols
     return metrics
 
 def getFeatures(fn):
