@@ -32,12 +32,28 @@ def classify_cancer(fn = "/Users/felix/Data/dssg-cancer/features/features.csv"):
         # compute Scores
         metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelNames,s) for s in scorers}
     # dump results
-    json.dump(metrics,gzip.open("multilabel_classification_metrics.json","w"))
+    json.dump(metrics,gzip.open("multilabel_classification_metrics.json","wt"))
     return metrics
+
+def getFeatures(fn):
+    '''
+    Load and vectorize features
+    '''
+    print("Vectorizing title character ngrams")
+    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
+    titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
+    print("Vectorizing keywords")
+    keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
+    print("Vectorizing authors")
+    authorVects = HashingVectorizer(n_features=2**12).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
+    print("Vectorizing abstracts")
+    abstractVects = HashingVectorizer(n_features=2**12).fit_transform(df.abstract.fillna("").str.replace('[\[\]\'\"]',""))
+    X = hstack((titleVects,keywordVects,authorVects,abstractVects))
+    print("Extracted feature vectors with %d dimensions"%X.shape[-1])
 
 def getFeaturesAndLabelsFine(fn):
     '''
-    Load and vectorizer features and labels (vectorized using MultiLabelBinarizer)
+    Load and vectorizer features and fine grained labels (vectorized using MultiLabelBinarizer)
     '''
     print("Reading data")
     df = pd.read_csv(fn)
@@ -46,22 +62,12 @@ def getFeaturesAndLabelsFine(fn):
     labelVectorizer = MultiLabelBinarizer()
     y = labelVectorizer.fit_transform(df.classifications.str.replace('[\[\]\'\"]',"").apply(tokenizeCancerLabels))
     print("Vectorized %d labels"%y.shape[-1])
-    print("Vectorizing title character ngrams")
-    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
-    titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
-    print("Vectorizing keywords")
-    keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
-    print("Vectorizing authors")
-    authorVects = HashingVectorizer(n_features=2**12).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
-    print("Vectorizing abstracts")
-    abstractVects = HashingVectorizer(n_features=2**12).fit_transform(df.abstract.fillna("").str.replace('[\[\]\'\"]',""))
-    X = hstack((titleVects,keywordVects,authorVects,abstractVects))
-    print("Extracted feature vectors with %d dimensions"%X.shape[-1])
+    X = getFeatures(fn)
     return X,y,labelVectorizer.classes_
 
 def getFeaturesAndLabelsCoarse(fn):
     '''
-    Load and vectorizer features and labels (vectorized using MultiLabelBinarizer)
+    Load and vectorizer features and coarse grained top level labels (vectorized using MultiLabelBinarizer)
     '''
     print("Reading data")
     df = pd.read_csv(fn)
@@ -70,19 +76,8 @@ def getFeaturesAndLabelsCoarse(fn):
     labelVectorizer = MultiLabelBinarizer()
     y = labelVectorizer.fit_transform(df.label_top_level.str.replace('[\[\]\'\"]',"").apply(tokenizeCancerLabels))
     print("Vectorized %d labels"%y.shape[-1])
-    print("Vectorizing title character ngrams")
-    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
-    titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
-    print("Vectorizing keywords")
-    keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
-    print("Vectorizing authors")
-    authorVects = HashingVectorizer(n_features=2**12).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
-    print("Vectorizing abstracts")
-    abstractVects = HashingVectorizer(n_features=2**12).fit_transform(df.abstract.fillna("").str.replace('[\[\]\'\"]',""))
-    X = hstack((titleVects,keywordVects,authorVects,abstractVects))
-    print("Extracted feature vectors with %d dimensions"%X.shape[-1])
+    X = getFeatures(fn)
     return X,y,labelVectorizer.classes_
-
 
 def getSortedMetrics(true, predicted, labels, scorer):
     '''
