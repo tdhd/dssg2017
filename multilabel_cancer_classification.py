@@ -8,7 +8,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
 from scipy.sparse import hstack
 import warnings,json,gzip
-
+from time import time
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 
 def classify_cancer(fn = "/Users/felix/Data/dssg-cancer/features/features.csv"):
     '''
@@ -22,7 +25,19 @@ def classify_cancer(fn = "/Users/felix/Data/dssg-cancer/features/features.csv"):
         warnings.simplefilter("ignore")
         # train a classifier
         print("Training classifier")
-        classif = OneVsRestClassifier(SGDClassifier(n_jobs=-1)).fit(X_train, y_train)
+        clf = OneVsRestClassifier(SGDClassifier())
+        param_grid = {
+            "estimator__alpha": [1e-8,1e-5,1e-4,1e-2],
+            "estimator__n_iter": [5,10,20]
+        }
+        gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
+            verbose=3,n_jobs=-1,scoring="average_precision")
+        start = time()
+        classif = gridsearch.fit(X_train, y_train)
+        print("GridSearchCV took %.2f seconds for %d candidates"
+              " parameter settings." % ((time() - start), n_iter_search))
+        report(gridsearch.cv_results_)
+
     # predict
     y_predicted = classif.predict(X_test)
     # the scores we want to compute
@@ -39,23 +54,26 @@ def getFeatures(fn):
     '''
     Load and vectorize features
     '''
+    print("Reading data for feature extraction")
+    df = pd.read_csv(fn)
     print("Vectorizing title character ngrams")
-    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
+    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
     print("Vectorizing keywords")
     keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
     print("Vectorizing authors")
-    authorVects = HashingVectorizer(n_features=2**12).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
+    authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
     print("Vectorizing abstracts")
-    abstractVects = HashingVectorizer(n_features=2**12).fit_transform(df.abstract.fillna("").str.replace('[\[\]\'\"]',""))
+    abstractVects = HashingVectorizer(n_features=2**15).fit_transform(df.abstract.fillna("").str.replace('[\[\]\'\"]',""))
     X = hstack((titleVects,keywordVects,authorVects,abstractVects))
     print("Extracted feature vectors with %d dimensions"%X.shape[-1])
+    return X
 
 def getFeaturesAndLabelsFine(fn):
     '''
     Load and vectorizer features and fine grained labels (vectorized using MultiLabelBinarizer)
     '''
-    print("Reading data")
+    print("Reading data for label extraction")
     df = pd.read_csv(fn)
     # tokenize and binarize cancer classification labels
     print("Vectorizing labels")
@@ -69,7 +87,7 @@ def getFeaturesAndLabelsCoarse(fn):
     '''
     Load and vectorizer features and coarse grained top level labels (vectorized using MultiLabelBinarizer)
     '''
-    print("Reading data")
+    print("Reading data for label extraction")
     df = pd.read_csv(fn)
     # tokenize and binarize cancer classification labels
     print("Vectorizing labels")
@@ -86,9 +104,20 @@ def getSortedMetrics(true, predicted, labels, scorer):
     score = scorer(true,predicted,average=None)
     return [(labels[l],score[l]) for l in score.argsort()[::-1]]
 
-
 def tokenizeCancerLabels(s):
     '''
     Tokenize the label string and remove empty strings
     '''
     return [t for t in s.split(",") if len(t)>0]
+
+# Utility function to report best scores
+def report(results, n_top=3):
+    for i in range(1, n_top + 1):
+        candidates = np.flatnonzero(results['rank_test_score'] == i)
+        for candidate in candidates:
+            print("Model with rank: {0}".format(i))
+            print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+                  results['mean_test_score'][candidate],
+                  results['std_test_score'][candidate]))
+            print("Parameters: {0}".format(results['params'][candidate]))
+            print("")
