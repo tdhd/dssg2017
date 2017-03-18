@@ -11,12 +11,7 @@ def classify_cancer(fn = "/Users/felix/Data/master/features/features.csv"):
     '''
     Runs a multilabel classification experiment
     '''
-    df = pd.read_csv(fn)
-    # tokenize and binarize cancer classification labels
-    labelVectorizer = MultiLabelBinarizer()
-    y = labelVectorizer.fit_transform(df.classifications.apply(tokenizeCancerLabels))
-    featureVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
-    X = featureVectorizer.transform(df.fulltitle)
+    X,y = getFeaturesAndLabels(fn)
     # a train test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8)
     # train a classifier
@@ -29,6 +24,18 @@ def classify_cancer(fn = "/Users/felix/Data/master/features/features.csv"):
     metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelVectorizer.classes_,s) for s in scorers}
     # dump results
     json.dump(metrics,open("multilabel_classification_metrics.json","wb"))
+
+def getFeaturesAndLabels(fn):
+    '''
+    Load and vectorizer features and labels (vectorized using MultiLabelBinarizer)
+    '''
+    df = pd.read_csv(fn)
+    # tokenize and binarize cancer classification labels
+    labelVectorizer = MultiLabelBinarizer()
+    y = labelVectorizer.fit_transform(df.classifications.apply(tokenizeCancerLabels))
+    featureVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
+    X = featureVectorizer.transform(df.fulltitle)
+    return X,y
 
 def getSortedMetrics(true, predicted, labels, scorer):
     '''
