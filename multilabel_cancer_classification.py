@@ -2,10 +2,11 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import SGDClassifier
-from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer, CountVectorizer
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
+from scipy.sparse import hstack
 
 def classify_cancer(fn = "/Users/felix/Data/master/features/features.csv"):
     '''
@@ -33,8 +34,11 @@ def getFeaturesAndLabels(fn):
     # tokenize and binarize cancer classification labels
     labelVectorizer = MultiLabelBinarizer()
     y = labelVectorizer.fit_transform(df.classifications.apply(tokenizeCancerLabels))
-    featureVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
-    X = featureVectorizer.transform(df.fulltitle)
+    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**12)
+    titleVects = titleVectorizer.fit_transform(df.fulltitle)
+    keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
+    authorVects = HashingVectorizer(n_features=2**12).fit_transform(df.author.str.replace('[\[\]\'\"]',""))
+    X = hstack((titleVects,keywordVects,authorVects))
     return X,y
 
 def getSortedMetrics(true, predicted, labels, scorer):
