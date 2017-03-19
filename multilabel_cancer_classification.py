@@ -20,7 +20,7 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
     '''
     Runs a multilabel classification experiment
     '''
-    X,y,labelNames = getFeaturesAndLabelsCoarse(fnTrain)
+    X,y,labelNames = getFeaturesAndLabelsFine(fnTrain, topLabels=100)
     # a train test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     # turn off warnings, usually there are some labels missing in the training set
@@ -83,7 +83,7 @@ def getFeatures(fn):
     print("Extracted feature vectors with %d dimensions"%X.shape[-1])
     return X
 
-def getFeaturesAndLabelsFine(fn):
+def getFeaturesAndLabelsFine(fn, topLabels=400):
     '''
     Load and vectorizer features and fine grained labels (vectorized using MultiLabelBinarizer)
     '''
@@ -95,7 +95,16 @@ def getFeaturesAndLabelsFine(fn):
     y = labelVectorizer.fit_transform(df.classifications.str.replace('[\[\]\'\"]',"").apply(tokenizeCancerLabels))
     print("Vectorized %d labels"%y.shape[-1])
     X = getFeatures(fn)
-    return X,y,labelVectorizer.classes_
+    # compute label histogram
+    labelCounts = y.sum(axis=0)
+    # truncate topLabels
+    topLabelsIdx = labelCounts.argsort()[-topLabels:][::-1]
+    # check whether any label of is amongst topLabels or has no label at all
+    valid = ((y[:, topLabelsIdx]).sum(axis=1)>0).T | (y.sum(axis=1)==0).T
+    coverage = np.double(valid.sum()) / len(df)
+    print("Truncating to top %d labels accounted to %0.2f (%d/%d) of data (max count: %d, min count: %d)"%(topLabels, coverage, valid.sum(), len(df), labelCounts[topLabelsIdx[0]],labelCounts[topLabelsIdx[-1]]))
+    # return only rows that either are without label or have at least one of the topLabels most frequent labels
+    return X.tocsr()[valid,:],y[:,topLabelsIdx][valid,:],labelVectorizer.classes_[topLabelsIdx]
 
 def getFeaturesAndLabelsCoarse(fn):
     '''
