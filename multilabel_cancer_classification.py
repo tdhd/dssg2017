@@ -35,7 +35,7 @@ def read_ris(fn):
     articles = [read_article(lines[startArticle[s]:startArticle[s+1]]) for s in range(len(startArticle)-1)]
     return pd.DataFrame(articles)
 
-def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
+def classify_cancer(fnTrain = TRAINDATA,fnTestRis = RISDATA):
     '''
     Runs a multilabel classification experiment
     '''
@@ -50,7 +50,7 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
         print("Training classifier")
         clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         param_grid = {
-            "estimator__alpha": [1e-5,1e-4],
+            "estimator__alpha": [1e-4],
             "estimator__n_iter": [20]
         }
         gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
@@ -72,11 +72,11 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
     print("Retraining on all data")
     classifAllData = classif.best_estimator_.fit(X,y)
     print("Reading data for testing model")
-    df = pd.read_csv(fnTest)
+    X = getFeaturesRis(fnTest)
     # this assumes that
     # - the feature extraction yields exactly the same number and ordering of samples
     # - the number of classes doesn't change
-    predictions = classifAllData.predict_proba(getFeatures(fnTest))
+    predictions = classifAllData.predict_proba(X)
     predictionsDF = pd.concat([df, pd.DataFrame(np.hstack([predictions,abs(predictions-.5)]))],
      axis=1, ignore_index=True)
     predCols = ["probability-%s"%c for c in labelNames]
