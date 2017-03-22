@@ -35,7 +35,7 @@ def read_ris(fn):
     articles = [read_article(lines[startArticle[s]:startArticle[s+1]]) for s in range(len(startArticle)-1)]
     return pd.DataFrame(articles)
 
-def classify_cancer(fnTrain = TRAINDATA,fnTestRis = RISDATA):
+def classify_cancer(fnTrain = TRAINDATA,fnTest = RISDATA):
     '''
     Runs a multilabel classification experiment
     '''
@@ -51,7 +51,7 @@ def classify_cancer(fnTrain = TRAINDATA,fnTestRis = RISDATA):
         clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         param_grid = {
             "estimator__alpha": [1e-4],
-            "estimator__n_iter": [20]
+            "estimator__n_iter": [5]
         }
         gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
             verbose=3,n_jobs=-1,scoring="average_precision")
@@ -73,6 +73,7 @@ def classify_cancer(fnTrain = TRAINDATA,fnTestRis = RISDATA):
     classifAllData = classif.best_estimator_.fit(X,y)
     print("Reading data for testing model")
     X = getFeaturesRis(fnTest)
+    df = read_ris(fnTest)
     # this assumes that
     # - the feature extraction yields exactly the same number and ordering of samples
     # - the number of classes doesn't change
@@ -95,7 +96,7 @@ def getFeaturesRis(fn):
     titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     titleVects = titleVectorizer.fit_transform(df.T1.fillna(""))
     print("Vectorizing keywords")
-    keywordVects = CountVectorizer().fit_transform(df.KW.str.replace('[\[\]\'\"]',""))
+    keywordVects = HashingVectorizer(n_features=2*10).fit_transform(df.KW.str.replace('[\[\]\'\"]',""))
     print("Vectorizing authors")
     authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.A1.fillna("").str.replace('[\[\]\'\"]',""))
     print("Vectorizing abstracts")
@@ -114,7 +115,7 @@ def getFeatures(fn):
     titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
     print("Vectorizing keywords")
-    keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
+    keywordVects = HashingVectorizer(n_features=2*10).fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
     print("Vectorizing authors")
     authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
     print("Vectorizing abstracts")
