@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
 from scipy.sparse import hstack
-import warnings,json,gzip
+import warnings,json,gzip,re
 from time import time
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
@@ -15,23 +15,43 @@ import numpy as np
 
 TRAINDATA = "/Users/felix/Data/dssg-cancer/features/features.csv"
 TESTDATA = "/Users/felix/Data/dssg-cancer/features/features.csv"
+RISDATA = "/Users/felix/Code/Python/dssg2017/hoden-reviews-ovid-update-201606-originial.ris"
+
+RISSTART = '\d+\. \n'
+
+def read_article(lines):
+    article = {}
+    for line in lines:
+        keyValue = line.split("-")
+        if "-" in line and len(keyValue) == 2:
+            key,value = [t.strip() for t in keyValue]
+            if key in article: article[key] += "," + value
+            else: article[key] = value
+    return article
+
+def read_ris(fn):
+    lines = open(fn,"rt").readlines()
+    startArticle = [idx for idx,l in enumerate(lines) if re.match(RISSTART, l)]
+    articles = [read_article(lines[startArticle[s]:startArticle[s+1]]) for s in range(len(startArticle)-1)]
+    return pd.DataFrame(articles)
 
 def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
     '''
     Runs a multilabel classification experiment
     '''
-    X,y,labelNames = getFeaturesAndLabelsCoarse(fnTrain)
+    X,y,labelNames = getFeaturesAndLabelsFine(fnTrain, topLabels=100)
     # a train test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     # turn off warnings, usually there are some labels missing in the training set
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+
         # train a classifier
         print("Training classifier")
         clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         param_grid = {
-            "estimator__alpha": [1e-8,1e-5,1e-4,1e-2],
-            "estimator__n_iter": [5,10,20]
+            "estimator__alpha": [1e-5,1e-4],
+            "estimator__n_iter": [20]
         }
         gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
             verbose=3,n_jobs=-1,scoring="average_precision")
@@ -47,7 +67,8 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
         # compute Scores
         metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelNames,s) for s in scorers}
     # dump results
-    json.dump(metrics,gzip.open("multilabel_classification_metrics.json","wt"))
+    json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
+    print(metrics)
     print("Retraining on all data")
     classifAllData = classif.best_estimator_.fit(X,y)
     print("Reading data for testing model")
@@ -61,8 +82,27 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
     predCols = ["probability-%s"%c for c in labelNames]
     marginCols = ["distToMargin-%s"%c for c in labelNames]
     predictionsDF.columns = df.columns.tolist() + predCols + marginCols
-
+    predictionsDF.to_csv(gzip.open("predictions.csv.gzip","wt"))
     return metrics,predictionsDF
+
+def getFeaturesRis(fn):
+    '''
+    Load and vectorize features
+    '''
+    print("Reading data for feature extraction")
+    df = read_ris(fn)
+    print("Vectorizing title character ngrams")
+    titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
+    titleVects = titleVectorizer.fit_transform(df.T1.fillna(""))
+    print("Vectorizing keywords")
+    keywordVects = CountVectorizer().fit_transform(df.KW.str.replace('[\[\]\'\"]',""))
+    print("Vectorizing authors")
+    authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.A1.fillna("").str.replace('[\[\]\'\"]',""))
+    print("Vectorizing abstracts")
+    abstractVects = HashingVectorizer(n_features=2**15).fit_transform(df.N2.fillna("").str.replace('[\[\]\'\"]',""))
+    X = hstack((titleVects,keywordVects,authorVects,abstractVects))
+    print("Extracted feature vectors with %d dimensions"%X.shape[-1])
+    return X
 
 def getFeatures(fn):
     '''
@@ -83,7 +123,7 @@ def getFeatures(fn):
     print("Extracted feature vectors with %d dimensions"%X.shape[-1])
     return X
 
-def getFeaturesAndLabelsFine(fn):
+def getFeaturesAndLabelsFine(fn, topLabels=400):
     '''
     Load and vectorizer features and fine grained labels (vectorized using MultiLabelBinarizer)
     '''
@@ -95,7 +135,16 @@ def getFeaturesAndLabelsFine(fn):
     y = labelVectorizer.fit_transform(df.classifications.str.replace('[\[\]\'\"]',"").apply(tokenizeCancerLabels))
     print("Vectorized %d labels"%y.shape[-1])
     X = getFeatures(fn)
-    return X,y,labelVectorizer.classes_
+    # compute label histogram
+    labelCounts = y.sum(axis=0)
+    # truncate topLabels
+    topLabelsIdx = labelCounts.argsort()[-topLabels:][::-1]
+    # check whether any label of is amongst topLabels or has no label at all
+    valid = ((y[:, topLabelsIdx]).sum(axis=1)>0).T | (y.sum(axis=1)==0).T
+    coverage = np.double(valid.sum()) / len(df)
+    print("Truncating to top %d labels accounted to %0.2f (%d/%d) of data (max count: %d, min count: %d)"%(topLabels, coverage, valid.sum(), len(df), labelCounts[topLabelsIdx[0]],labelCounts[topLabelsIdx[-1]]))
+    # return only rows that either are without label or have at least one of the topLabels most frequent labels
+    return X.tocsr()[valid,:],y[:,topLabelsIdx][valid,:],labelVectorizer.classes_[topLabelsIdx]
 
 def getFeaturesAndLabelsCoarse(fn):
     '''
