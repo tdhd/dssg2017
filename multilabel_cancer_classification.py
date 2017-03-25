@@ -12,7 +12,7 @@ from time import time
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
-from labels import to_list, flat_map, classifications_list_to_cancer_paper_subs
+from labels import to_list, flat_map, classifications_list_to_cancer_paper_subs, paper_types_from, cancer_types_from
 
 TRAINDATA = "/home/ppschmidt/dssg2017/data/master/features/features.csv"
 TESTDATA = TRAINDATA # "/Users/felix/Data/dssg-cancer/features/features.csv"
@@ -136,8 +136,10 @@ def getFeaturesAndLabelsFine(fn, topLabels=100):
     labelVectorizer = MultiLabelBinarizer()
     df['classifications_list'] = df.apply(lambda row: to_list(row, 'classifications'), axis=1)
     df['cancer_paper_subs'] = df['classifications_list'].apply(classifications_list_to_cancer_paper_subs)
-    y = labelVectorizer.fit_transform(df['cancer_paper_subs'])
-    print("Vectorized %d labels"%y.shape[-1])
+    df['paper_types'] = df['classifications_list'].apply(paper_types_from)
+    df['cancer_types'] = df['classifications_list'].apply(cancer_types_from)
+    y = labelVectorizer.fit_transform(df['cancer_types'])
+    print("Vectorized %d labels in %d dimensions"%(y.shape[-1],y.shape[1]))
     X = getFeatures(fn)
     # compute label histogram
     labelCounts = y.sum(axis=0)
