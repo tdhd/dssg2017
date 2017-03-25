@@ -1,4 +1,49 @@
 
+def classifications_list_to_cancer_paper_subs_pruned(row):
+    '''
+    apply this function to the already parsed classifications list (output of labels.to_list)
+
+    df['classifications_list'] = df.apply(lambda row: to_list(row, 'classifications'), axis=1)
+    df['cancer_paper_subs_pruned'] = df['classifications_list'].apply(classifications_list_to_cancer_paper_subs_pruned)
+
+    this function converts each entry in the classification list
+    to separate cancer type(s), paper type and subcategories
+    where it only takes the first of the subcategories and prunes the remaining
+    '''
+    import re
+    def cancers_from(c):
+        s = re.search('(.*),\d.*', c, re.IGNORECASE)
+        if s:
+            return s.group(1).split(",")
+        else:
+            return ['unknown']
+    def papers_from(c):
+        s = re.search('.*,(\d).*', c, re.IGNORECASE)
+        if s:
+            return s.group(1)
+        else:
+            return 'unknown'
+
+    def cats_from(c):
+        s = re.search('.*,\d-(.*)', c, re.IGNORECASE)
+        if s:
+            return s.group(1)
+        else:
+            return 'unknown'
+
+    def prune_cats(c):
+        return c.split("-")[0]
+
+    # can be multiple cancers
+    cancers = map(cancers_from, row)
+    cancers = [item for sublist in cancers for item in sublist]
+    papers = map(papers_from, row)
+    cats = map(cats_from, row)
+    pruned_cats = map(prune_cats, cats)
+    # print cancers, papers, cats, pruned_cats
+    # print cancers + papers + pruned_cats
+    return cancers + papers + pruned_cats
+
 def cancer_types_from(classifications_list):
     '''
     given classifications list, extract (possibly more than one) cancer type
@@ -12,7 +57,7 @@ def cancer_types_from(classifications_list):
         if s:
             return s.group(1).split(",")
         else:
-            return []
+            return ['unknown']
     l = map(extract, classifications_list)
     l = [item for sublist in l for item in sublist]
     return list(set(l))
