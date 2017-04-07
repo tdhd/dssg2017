@@ -18,6 +18,7 @@ l1 = 0
 l2 = 0
 l3 = 0
 
+# branch micha
 
 for i in range(iterations):
     X, y = shuffle(data, target)
