@@ -17,20 +17,20 @@ TRAINDATA = "/Users/felix/Data/dssg-cancer/features/features.csv"
 TESTDATA = "/Users/felix/Data/dssg-cancer/features/features.csv"
 RISDATA = "/Users/felix/Code/Python/dssg2017/hoden-reviews-ovid-update-201606-originial.ris"
 
-RISSTART = '\d+\. \n'
+RISSTART = '\n'
 
 def read_article(lines):
     article = {}
     for line in lines:
-        keyValue = line.split("-")
-        if "-" in line and len(keyValue) == 2:
-            key,value = [t.strip() for t in keyValue]
+        match = re.match("[A-Z0-9]{2}\s+-",line)
+        if match:
+            key,value = line[:2], line[match.span()[1]:].strip()
             if key in article: article[key] += "," + value
             else: article[key] = value
     return article
 
 def read_ris(fn):
-    lines = open(fn,"rt").readlines()
+    lines = open(fn,"rt", errors='ignore').readlines()
     startArticle = [idx for idx,l in enumerate(lines) if re.match(RISSTART, l)]
     articles = [read_article(lines[startArticle[s]:startArticle[s+1]]) for s in range(len(startArticle)-1)]
     return pd.DataFrame(articles)
