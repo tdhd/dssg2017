@@ -12,10 +12,11 @@ from time import time
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
+from labels import to_list, flat_map, classifications_list_to_cancer_paper_subs, classifications_list_to_cancer_paper_subs_pruned, paper_types_from, cancer_types_from
 
-TRAINDATA = "/Users/felix/Data/dssg-cancer/features/features.csv"
-TESTDATA = "/Users/felix/Data/dssg-cancer/features/features.csv"
-RISDATA = "/Users/felix/Code/Python/dssg2017/hoden-reviews-ovid-update-201606-originial.ris"
+TRAINDATA = "/home/ppschmidt/dssg2017/data/master/features/features.csv"
+TESTDATA = TRAINDATA # "/Users/felix/Data/dssg-cancer/features/features.csv"
+RISDATA = "/home/ppschmidt/dssg17/hoden-reviews-ovid-update-201606-originial.ris"
 
 RISSTART = '\n'
 
@@ -50,8 +51,9 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = RISDATA):
         print("Training classifier")
         clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         param_grid = {
-            "estimator__alpha": [1e-4],
-            "estimator__n_iter": [5]
+            "estimator__alpha": [1e-6,1e-5],
+            "estimator__n_iter": [20,40,50,60],
+            "estimator__penalty": ['l1', 'l2']
         }
         gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
             verbose=3,n_jobs=-1,scoring="average_precision")
@@ -124,7 +126,7 @@ def getFeatures(fn):
     print("Extracted feature vectors with %d dimensions"%X.shape[-1])
     return X
 
-def getFeaturesAndLabelsFine(fn, topLabels=400):
+def getFeaturesAndLabelsFine(fn, topLabels=100):
     '''
     Load and vectorizer features and fine grained labels (vectorized using MultiLabelBinarizer)
     '''
@@ -133,8 +135,13 @@ def getFeaturesAndLabelsFine(fn, topLabels=400):
     # tokenize and binarize cancer classification labels
     print("Vectorizing labels")
     labelVectorizer = MultiLabelBinarizer()
-    y = labelVectorizer.fit_transform(df.classifications.str.replace('[\[\]\'\"]',"").apply(tokenizeCancerLabels))
-    print("Vectorized %d labels"%y.shape[-1])
+    df['classifications_list'] = df.apply(lambda row: to_list(row, 'classifications'), axis=1)
+    #df['cancer_paper_subs'] = df['classifications_list'].apply(classifications_list_to_cancer_paper_subs)
+    #df['paper_types'] = df['classifications_list'].apply(paper_types_from)
+    #df['cancer_types'] = df['classifications_list'].apply(cancer_types_from)
+    df['cancer_paper_subs_pruned'] = df['classifications_list'].apply(classifications_list_to_cancer_paper_subs_pruned)
+    y = labelVectorizer.fit_transform(df['cancer_paper_subs_pruned'])
+    print("Vectorized %d labels in %d dimensions"%(y.shape[-1],y.shape[1]))
     X = getFeatures(fn)
     # compute label histogram
     labelCounts = y.sum(axis=0)
