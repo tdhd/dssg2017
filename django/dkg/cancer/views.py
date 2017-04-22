@@ -13,6 +13,7 @@ def KW_stats_from(df):
     df['split_KW'] = df.KW.map(lambda r: r.split(','))
     import itertools
     kw = pd.DataFrame({'kw': list(itertools.chain(*df['split_KW']))})
+    kw['kw'] = kw['kw'].map(lambda k: k.lower())
     print(kw)
     agg = kw.groupby('kw').size().reset_index().sort_values(0, ascending=False)
     agg['n'] = agg[0]
