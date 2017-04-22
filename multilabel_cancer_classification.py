@@ -18,25 +18,25 @@ TRAINDATA = "/home/ppschmidt/dssg2017/data/master/features/features.csv"
 TESTDATA = TRAINDATA # "/Users/felix/Data/dssg-cancer/features/features.csv"
 RISDATA = "/home/ppschmidt/dssg17/hoden-reviews-ovid-update-201606-originial.ris"
 
-RISSTART = '\d+\. \n'
+RISSTART = '\n'
 
 def read_article(lines):
     article = {}
     for line in lines:
-        keyValue = line.split("-")
-        if "-" in line and len(keyValue) == 2:
-            key,value = [t.strip() for t in keyValue]
+        match = re.match("[A-Z0-9]{2}\s+-",line)
+        if match:
+            key,value = line[:2], line[match.span()[1]:].strip()
             if key in article: article[key] += "," + value
             else: article[key] = value
     return article
 
 def read_ris(fn):
-    lines = open(fn,"rt").readlines()
+    lines = open(fn,"rt", errors='ignore').readlines()
     startArticle = [idx for idx,l in enumerate(lines) if re.match(RISSTART, l)]
     articles = [read_article(lines[startArticle[s]:startArticle[s+1]]) for s in range(len(startArticle)-1)]
     return pd.DataFrame(articles)
 
-def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
+def classify_cancer(fnTrain = TRAINDATA,fnTest = RISDATA):
     '''
     Runs a multilabel classification experiment
     '''
@@ -74,11 +74,12 @@ def classify_cancer(fnTrain = TRAINDATA,fnTest = TESTDATA):
     print("Retraining on all data")
     classifAllData = classif.best_estimator_.fit(X,y)
     print("Reading data for testing model")
-    df = pd.read_csv(fnTest)
+    X = getFeaturesRis(fnTest)
+    df = read_ris(fnTest)
     # this assumes that
     # - the feature extraction yields exactly the same number and ordering of samples
     # - the number of classes doesn't change
-    predictions = classifAllData.predict_proba(getFeatures(fnTest))
+    predictions = classifAllData.predict_proba(X)
     predictionsDF = pd.concat([df, pd.DataFrame(np.hstack([predictions,abs(predictions-.5)]))],
      axis=1, ignore_index=True)
     predCols = ["probability-%s"%c for c in labelNames]
@@ -97,7 +98,7 @@ def getFeaturesRis(fn):
     titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     titleVects = titleVectorizer.fit_transform(df.T1.fillna(""))
     print("Vectorizing keywords")
-    keywordVects = CountVectorizer().fit_transform(df.KW.str.replace('[\[\]\'\"]',""))
+    keywordVects = HashingVectorizer(n_features=2*10).fit_transform(df.KW.str.replace('[\[\]\'\"]',""))
     print("Vectorizing authors")
     authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.A1.fillna("").str.replace('[\[\]\'\"]',""))
     print("Vectorizing abstracts")
@@ -116,7 +117,7 @@ def getFeatures(fn):
     titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
     print("Vectorizing keywords")
-    keywordVects = CountVectorizer().fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
+    keywordVects = HashingVectorizer(n_features=2*10).fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
     print("Vectorizing authors")
     authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
     print("Vectorizing abstracts")
