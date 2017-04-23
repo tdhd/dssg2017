@@ -9,6 +9,11 @@ from ris import read_ris_lines
 
 from ovr import labels_of, features_of, classify_cancer
 
+from sklearn.externals import joblib
+import json
+import pickle
+import numpy as np
+
 def KW_stats_from(df):
     import pandas as pd
     import numpy as np
@@ -33,29 +38,78 @@ def df_from(ris_contents):
     return df
 
 def index(request):
-    latest_question_list = [1, 2, 3]#Question.objects.order_by('-pub_date')[:5]
-    context = {'latest_question_list': latest_question_list}
-    return render(request, 'cancer/index.html', context)
+    # print(request.body)
+    clf_filename = 'clf.pkl'
+    labels_filename = 'labels.pkl'
+    results = []
+    if 'train' in request.POST:
+        print('train')
+        df = df_from(request.FILES['file'].read())
+        df = df[0:5000]
+        X = features_of(df)
+        y, label_names = labels_of(df, 'KW')
+        clf = classify_cancer(X, y, label_names)
+        joblib.dump(clf, clf_filename)
+        with open(labels_filename, 'w') as f:
+            # f.write(json.dumps(label_names))
+            pickle.dump(label_names, f)
+        print(clf)
+    elif 'test' in request.POST:
 
-def upload_train(request):
-    df = df_from(request.FILES['file'].read())
+        n_top_kws = 10
 
-    KW_stats_from(df)
+        clf = joblib.load(clf_filename)
+        print(clf)
 
-    p_ausschluss = 100.0*df.KW.str.contains('Ausschluss').sum()/df.shape[0]
-    p_basis = 100.0*df.KW.str.contains('basis').sum()/df.shape[0]
-    print(p_basis)
+        df = df_from(request.FILES['file'].read())
+        X = features_of(df)
 
-    print(df['N2'].head())
-    df = df[0:5000]
+        with open(labels_filename, 'r') as f:
+            label_names = pickle.load(f)
 
-    X = features_of(df)
-    y, label_names = labels_of(df, 'KW')
-    clf = classify_cancer(X, y, label_names)
-    print(clf)
-    return HttpResponse('uploaded file with {} articles, {}% with Ausschluss'.format(df.shape[0], p_ausschluss))
+        y = clf.predict_proba(X)
 
-def upload_pred(request):
-    df = df_from(request.FILES['file'].read())
-    context = {} #{'latest_question_list': [1, 2, 3]}
-    return render(request, 'cancer/preds.html', context)
+        '''
+        TODO:
+            - also return precisions for all labels
+        '''
+
+        results = []
+        for idx in range(y.shape[0]):
+            row = y[idx,:]
+            title = df.loc[idx,'T1']
+            labels_with_probas = [(label_names[l], np.round(row[l], 2)) for l in row.argsort()[::-1][:n_top_kws]]
+            result = {
+                'index': idx,
+                'title': title,
+                'labels': labels_with_probas
+            }
+            results.append(result)
+    else:
+        print('GET')
+
+    context = {'results': results}
+    return render(request, 'cancer/bs.html', context)
+
+# def upload_train(request):
+#     df = df_from(request.FILES['file'].read())
+#
+#     KW_stats_from(df)
+#
+#     p_ausschluss = 100.0*df.KW.str.contains('Ausschluss').sum()/df.shape[0]
+#     p_basis = 100.0*df.KW.str.contains('basis').sum()/df.shape[0]
+#     print(p_basis)
+#
+#     print(df['N2'].head())
+#     df = df[0:5000]
+#
+#     X = features_of(df)
+#     y, label_names = labels_of(df, 'KW')
+#     clf = classify_cancer(X, y, label_names)
+#     print(clf)
+#     return HttpResponse('uploaded file with {} articles, {}% with Ausschluss'.format(df.shape[0], p_ausschluss))
+#
+# def upload_pred(request):
+#     df = df_from(request.FILES['file'].read())
+#     context = {} #{'latest_question_list': [1, 2, 3]}
+#     return render(request, 'cancer/preds.html', context)

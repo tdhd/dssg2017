@@ -77,7 +77,7 @@ def classify_cancer(X, y, labelNames):
         clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         param_grid = {
             "estimator__alpha": [1e-6],
-            "estimator__n_iter": [20],
+            "estimator__n_iter": [5],
             "estimator__penalty": ['l2']
         }
         # clf = OneVsRestClassifier(LogisticRegression())
