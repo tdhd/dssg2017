@@ -7,6 +7,8 @@ from django.shortcuts import render
 
 from ris import read_ris_lines
 
+from ovr import labels_of, features_of, classify_cancer
+
 def KW_stats_from(df):
     import pandas as pd
     import numpy as np
@@ -43,6 +45,14 @@ def upload_train(request):
     p_ausschluss = 100.0*df.KW.str.contains('Ausschluss').sum()/df.shape[0]
     p_basis = 100.0*df.KW.str.contains('basis').sum()/df.shape[0]
     print(p_basis)
+
+    print(df['N2'].head())
+    df = df[0:5000]
+
+    X = features_of(df)
+    y, label_names = labels_of(df, 'KW')
+    clf = classify_cancer(X, y, label_names)
+    print(clf)
     return HttpResponse('uploaded file with {} articles, {}% with Ausschluss'.format(df.shape[0], p_ausschluss))
 
 def upload_pred(request):
