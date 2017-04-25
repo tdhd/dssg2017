@@ -37,7 +37,6 @@ def features_of(data):
     '''
     Load and vectorize features
     '''
-    # TODO: more features
     # print("Vectorizing title character ngrams")
     # titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     # titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
@@ -79,28 +78,27 @@ def classify_cancer(X, y, labelNames):
         warnings.simplefilter("ignore")
 
         # train a classifier
-        print("Training classifier")
-        clf = OneVsRestClassifier(SGDClassifier(loss="log"))
-        param_grid = {
-            "estimator__alpha": [1e-6],
-            "estimator__n_iter": [5],
-            "estimator__penalty": ['l2']
-        }
-        # clf = OneVsRestClassifier(LogisticRegression())
+        # print("Training classifier")
+        # clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         # param_grid = {
-        #     "estimator__C": [1e0, 1e1, 1e2],
-        #     "estimator__penalty": ['l1', 'l2']
+        #     "estimator__alpha": [1e-6],
+        #     "estimator__n_iter": [5],
+        #     "estimator__penalty": ['l2']
         # }
-        gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
-            verbose=3,n_jobs=8,scoring="average_precision")
-        classif = gridsearch.fit(X_train, y_train)
-        report(gridsearch.cv_results_)
+        # gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
+        #     verbose=3,n_jobs=-1,scoring="average_precision")
+        # clf = gridsearch.fit(X_train, y_train)
+        # report(gridsearch.cv_results_)
+
+        # without CV
+        clf = OneVsRestClassifier(SGDClassifier(alpha=1e-6,n_iter=5,loss="log"))
+        clf.fit(X_train, y_train)
 
     # predict test split to evaluate model
-    y_predicted = classif.predict(X_test)
+    y_predicted = clf.predict(X_test)
     # compute Scores
     print(y_predicted.shape)
-    print(classif.predict_proba(X_test))
+    print(clf.predict_proba(X_test))
     # the scores we want to compute
     scorers = [precision_score,recall_score,f1_score]
     with warnings.catch_warnings():
@@ -108,15 +106,14 @@ def classify_cancer(X, y, labelNames):
         metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelNames,s) for s in scorers}
     for metric in metrics:
         print metric, len(metrics[metric]), metrics[metric]
-    return classif
+
+    # retrain on all data
+    print("refitting clf on all data")
+    # clf = clf.best_estimator_.fit(X,y)
+    clf = clf.fit(X,y)
+    return clf
     # dump results
     # json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
-    # print(metrics)
-    # print("Retraining on all data")
-    # classifAllData = classif.best_estimator_.fit(X,y)
-    # print("Reading data for testing model")
-    # X = getFeaturesRis(fnTest)
-    # df = read_ris(fnTest)
     # # this assumes that
     # # - the feature extraction yields exactly the same number and ordering of samples
     # # - the number of classes doesn't change

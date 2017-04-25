@@ -68,7 +68,7 @@ def index(request):
         with open(labels_filename, 'r') as f:
             label_names = pickle.load(f)
 
-        y = clf.predict_proba(X)[0:100]
+        y = clf.predict_proba(X)[0:300]
 
         '''
         TODO:
@@ -79,7 +79,7 @@ def index(request):
         for idx in range(y.shape[0]):
             row = y[idx,:]
             title = df.loc[idx,'T1']
-            labels_with_probas = [(label_names[l], np.round(row[l], 2)) for l in row.argsort()[::-1]]
+            labels_with_probas = [(label_names[l], 100.0*np.round(row[l], 2)) for l in row.argsort()[::-1]]
             labels_with_probas = filter(lambda lp: lp[1] > 0.01, labels_with_probas)
             result = {
                 'index': idx,
