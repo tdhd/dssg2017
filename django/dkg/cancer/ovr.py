@@ -107,13 +107,14 @@ def classify_cancer(X, y, labelNames):
     for metric in metrics:
         print metric, len(metrics[metric]), metrics[metric]
 
+    # dump results
+    json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
+
     # retrain on all data
     print("refitting clf on all data")
     # clf = clf.best_estimator_.fit(X,y)
     clf = clf.fit(X,y)
     return clf
-    # dump results
-    # json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
     # # this assumes that
     # # - the feature extraction yields exactly the same number and ordering of samples
     # # - the number of classes doesn't change
