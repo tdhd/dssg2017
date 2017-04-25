@@ -7,7 +7,7 @@ from django.shortcuts import render
 
 from ris import read_ris_lines
 
-from ovr import labels_of, features_of, classify_cancer
+from ovr import labels_of, features_of, classify_cancer, clean_kws
 
 from sklearn.externals import joblib
 import json
@@ -17,7 +17,7 @@ import numpy as np
 def KW_stats_from(df):
     import pandas as pd
     import numpy as np
-    df['split_KW'] = df.KW.map(lambda r: r.split(','))
+    df['split_KW'] = df.KW.map(clean_kws)
     import itertools
     kw = pd.DataFrame({'kw': list(itertools.chain(*df['split_KW']))})
     kw['kw'] = kw['kw'].map(lambda k: k.lower())
@@ -45,7 +45,8 @@ def index(request):
     if 'train' in request.POST:
         print('train')
         df = df_from(request.FILES['file'].read())
-        df = df[0:5000]
+        KW_stats_from(df)
+        # df = df[0:15000]
         X = features_of(df)
         y, label_names = labels_of(df, 'KW')
         clf = classify_cancer(X, y, label_names)
@@ -56,10 +57,10 @@ def index(request):
         print(clf)
     elif 'test' in request.POST:
 
-        n_top_kws = 10
-
         clf = joblib.load(clf_filename)
         print(clf)
+
+        # TODO: use feature pipeline and do not encode independently
 
         df = df_from(request.FILES['file'].read())
         X = features_of(df)
@@ -67,7 +68,7 @@ def index(request):
         with open(labels_filename, 'r') as f:
             label_names = pickle.load(f)
 
-        y = clf.predict_proba(X)
+        y = clf.predict_proba(X)[0:100]
 
         '''
         TODO:
@@ -78,7 +79,8 @@ def index(request):
         for idx in range(y.shape[0]):
             row = y[idx,:]
             title = df.loc[idx,'T1']
-            labels_with_probas = [(label_names[l], np.round(row[l], 2)) for l in row.argsort()[::-1][:n_top_kws]]
+            labels_with_probas = [(label_names[l], np.round(row[l], 2)) for l in row.argsort()[::-1]]
+            labels_with_probas = filter(lambda lp: lp[1] > 0.01, labels_with_probas)
             result = {
                 'index': idx,
                 'title': title,

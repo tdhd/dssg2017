@@ -37,26 +37,31 @@ def features_of(data):
     '''
     Load and vectorize features
     '''
+    # TODO: more features
     # print("Vectorizing title character ngrams")
     # titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     # titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
-    # print("Vectorizing keywords")
-    # keywordVects = HashingVectorizer(n_features=2*10).fit_transform(df.searchquery_terms.str.replace('[\[\]\'\"]',""))
-    # print("Vectorizing authors")
-    # authorVects = HashingVectorizer(n_features=2**15).fit_transform(df.author.fillna("").str.replace('[\[\]\'\"]',""))
+    print("Vectorizing primary dates")
+    dates = HashingVectorizer(n_features=16).fit_transform(data.Y1.fillna(""))
+    print("Vectorizing titles")
+    titles = HashingVectorizer(n_features=2**8).fit_transform(data.T1.fillna(""))
+    print("Vectorizing authors")
+    authors = HashingVectorizer(n_features=2**8).fit_transform(data.A1.fillna(""))
     print("Vectorizing abstracts")
-    abstractVects = HashingVectorizer(n_features=2**15).fit_transform(data.N2.fillna(""))
-    # X = hstack((titleVects,keywordVects,authorVects,abstractVects))
-    X = abstractVects
+    abstracts = HashingVectorizer(n_features=2**15).fit_transform(data.N2.fillna(""))
+    X = hstack((dates,titles,authors,abstracts))
     print("Extracted feature vectors with %d dimensions"%X.shape[-1])
     return X
 
+def clean_kws(kws):
+    kwt = kws.lower().split(",")
+    kwt = filter(lambda kw: kw not in ['', 'quelle', 'ovid', 'systematisch'], kwt)
+    kwt = filter(lambda kw: not kw.startswith('20'), kwt)
+    return kwt
 
 def labels_of(data, label_col):
-    # TODO: filter empty
-
     print(data[label_col].head())
-    data[label_col] = data[label_col].apply(lambda row: row.lower().split(","))
+    data[label_col] = data[label_col].apply(clean_kws)
     print(data[label_col].head())
     labelVectorizer = MultiLabelBinarizer()
     y = labelVectorizer.fit_transform(data[label_col])
@@ -67,6 +72,7 @@ def classify_cancer(X, y, labelNames):
     '''
     Runs a multilabel classification experiment
     '''
+    # TODO: use pipeline with FeatureUnion
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     # turn off warnings, usually there are some labels missing in the training set
     with warnings.catch_warnings():
@@ -92,13 +98,13 @@ def classify_cancer(X, y, labelNames):
 
     # predict test split to evaluate model
     y_predicted = classif.predict(X_test)
+    # compute Scores
     print(y_predicted.shape)
     print(classif.predict_proba(X_test))
     # the scores we want to compute
     scorers = [precision_score,recall_score,f1_score]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        # compute Scores
         metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelNames,s) for s in scorers}
     for metric in metrics:
         print metric, len(metrics[metric]), metrics[metric]
