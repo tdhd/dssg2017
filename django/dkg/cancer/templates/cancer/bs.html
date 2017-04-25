@@ -38,31 +38,17 @@
 			</p>
 			<dl>
 				<dt>
-					Description lists
+					Training RIS files
 				</dt>
 				<dd>
-					A description list is perfect for defining terms.
+					The training RIS file should contain at least the fields KW, Y1, T1, A1 and N2.
 				</dd>
 				<dt>
-					Euismod
+					Test RIS files
 				</dt>
 				<dd>
-					Vestibulum id ligula porta felis euismod semper eget lacinia odio sem nec elit.
-				</dd>
-				<dd>
-					Donec id elit non mi porta gravida at eget metus.
-				</dd>
-				<dt>
-					Malesuada porta
-				</dt>
-				<dd>
-					Etiam porta sem malesuada magna mollis euismod.
-				</dd>
-				<dt>
-					Felis euismod semper eget lacinia
-				</dt>
-				<dd>
-					Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus.
+          The test RIS file should contain all of the fields as in the training RIS file, except the KW entries.
+          The KW entries are going to be predicted for the uploaded articles.
 				</dd>
 			</dl>
 			<h3>
@@ -87,31 +73,15 @@
 			</p>
 			<dl>
 				<dt>
-					Description lists
+					Output format
 				</dt>
 				<dd>
-					A description list is perfect for defining terms.
-				</dd>
-				<dt>
-					Euismod
-				</dt>
-				<dd>
-					Vestibulum id ligula porta felis euismod semper eget lacinia odio sem nec elit.
-				</dd>
-				<dd>
-					Donec id elit non mi porta gravida at eget metus.
-				</dd>
-				<dt>
-					Malesuada porta
-				</dt>
-				<dd>
-					Etiam porta sem malesuada magna mollis euismod.
-				</dd>
-				<dt>
-					Felis euismod semper eget lacinia
-				</dt>
-				<dd>
-					Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus.
+          Each article in the test RIS file is presented in one line in the table below.
+          The articles in the table have the same order as the test RIS file you have uploaded.
+          The first two columns show the article index, starting from 0, and the article title for reference.
+          The <b>Keywords</b> column shows the predicted keywords with their respective scores, where 100% means
+          that the model is quite sure. The lower that value the less sure the model in that particular keyword
+          prediction.
 				</dd>
 			</dl>
 			<div class="row">
@@ -152,7 +122,7 @@
 				Help
 			</h2>
 			<p>
-        Find more detailed description here.
+        More detailed description here.
 			</p>
 			<dl>
 				<dt>
