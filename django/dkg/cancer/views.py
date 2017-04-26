@@ -37,6 +37,27 @@ def df_from(ris_contents):
     # print(df.head())
     return df
 
+def model(request):
+    metrics = json.load(open("multilabel_classification_metrics.json","rt"))
+    print(metrics)
+    def unzip_metric(metrics, key, t):
+        precisions = filter(lambda p: p[1] >= t, metrics[key])
+        pl = map(lambda p: p[0], precisions)
+        pv = map(lambda p: p[1], precisions)
+        return pl, pv
+
+    # all precicions and recall
+    pl, pv = unzip_metric(metrics, 'precision_score', 0.0)
+    rl, rv = unzip_metric(metrics, 'recall_score', 0.0)
+
+    context = {
+        'precision_labels': pl,
+        'precision_scores': pv,
+        'recall_labels': rl,
+        'recall_scores': rv
+    }
+    return render(request, 'cancer/model.html', context)
+
 def index(request):
     # print(request.body)
     clf_filename = 'clf.pkl'
@@ -87,10 +108,13 @@ def index(request):
                 'labels': labels_with_probas
             }
             results.append(result)
+
     else:
         print('GET')
 
-    context = {'results': results}
+    context = {
+        'results': results,
+    }
     return render(request, 'cancer/bs.html', context)
 
 # def upload_train(request):

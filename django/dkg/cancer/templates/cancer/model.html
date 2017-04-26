@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>DKG Tagger</title>
+
+    <meta name="description" content="Source code generated using layoutit.com">
+    <meta name="author" content="LayoutIt!">
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  </head>
+
+<body>
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-md-12">
+			<h1 class="text-center">
+				Model stats
+			</h1>
+		</div>
+	</div>
+  <div class="row">
+		<div id="model-precision">
+		</div>
+    <div id="model-recall">
+    </div>
+    <script>
+    var precision_labels = "{{ precision_labels | safe }}"
+    var precision_labels = precision_labels.substring(1, precision_labels.length-1).split(",")
+    var precision_scores = "{{ precision_scores | safe }}"
+    var precision_scores = precision_scores.substring(1, precision_scores.length-1).split(",")
+    var data = [{
+      y: precision_labels,//['giraffes', 'orangutans', 'monkeys'],
+      x: precision_scores,//[20, 14, 23],
+      type: 'bar',
+      orientation: 'h',
+      marker: {
+        color: precision_scores,
+        colorscale: 'Viridis'
+      }
+    }];
+    var layout = {
+      title: 'Holdout label precisions',
+      font:{
+        family: 'Raleway, snas-serif'
+      },
+      showlegend: false,
+      xaxis: {
+        tickangle: 0,
+        title: 'Precision',
+      },
+      yaxis: {
+        zeroline: false,
+        gridwidth: 2
+      },
+      bargap :0.1
+    };
+    Plotly.newPlot('model-precision', data, layout);
+    </script>
+
+    <script>
+    var recall_labels = "{{ recall_labels | safe }}"
+    var recall_labels = recall_labels.substring(1, recall_labels.length-1).split(",")
+    var recall_scores = "{{ recall_scores | safe }}"
+    var recall_scores = recall_scores.substring(1, recall_scores.length-1).split(",")
+    var data = [{
+      y: recall_labels,//['giraffes', 'orangutans', 'monkeys'],
+      x: recall_scores,//[20, 14, 23],
+      type: 'bar',
+      orientation: 'h',
+      marker: {
+        color: recall_scores,
+        colorscale: 'Viridis'
+      }
+    }];
+    var layout = {
+      title: 'Holdout label recall',
+      font:{
+        family: 'Raleway, snas-serif'
+      },
+      showlegend: false,
+      xaxis: {
+        tickangle: 0,
+        title: 'Recall',
+      },
+      yaxis: {
+        zeroline: false,
+        gridwidth: 2
+      },
+      bargap :0.1
+    };
+    Plotly.newPlot('model-recall', data, layout);
+    </script>
+	</div>
+</div>
+</body>
+</html>
