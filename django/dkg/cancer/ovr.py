@@ -73,10 +73,38 @@ def clean_kws(kwt):
     kwt = filter(lambda kw: not kw.startswith('20'), kwt)
     return kwt
 
-def labels_of(data, label_col):
+def labels_of(data, label_col, p):
+    import itertools
+    import pandas as pd
+
+    print('data label head')
     print(data[label_col].head())
     data[label_col] = data[label_col].apply(clean_kws)
-    print(data[label_col].head())
+
+    kw = 'keyword'
+    kws = pd.DataFrame({kw: list(itertools.chain(*data[label_col]))})
+    kws_r = 1.0*kws.groupby(kw).agg({kw: np.size}).sort_values(kw, ascending=False)/kws.shape[0]
+    print('kws_r head')
+    print(kws_r.head())
+    cutoff = np.argmin(np.abs(kws_r.cumsum() - p).values) + 1
+    print('cutoff {}'.format(cutoff))
+
+    print('kws head')
+    valid_kws = kws[:cutoff]
+    print(valid_kws)
+
+    print('kws_r label head')
+    valid_kws = list(kws_r[:cutoff].index)
+    print(valid_kws)
+
+    def filter_kws(kws, valid):
+        return filter(lambda kw: kw in valid, kws)
+
+    data[label_col] = data[label_col].map(lambda kw: filter_kws(kw, valid_kws))
+    print('data label pruned')
+    print(data[label_col].head(10))
+
+    # print(data[label_col].head())
     labelVectorizer = MultiLabelBinarizer()
     y = labelVectorizer.fit_transform(data[label_col])
     print("Vectorized %d labels in %d dimensions"%(y.shape[-1],y.shape[1]))

@@ -69,7 +69,8 @@ def index(request):
         KW_stats_from(df)
         # df = df[0:15000]
         X = features_of(df)
-        y, label_names = labels_of(df, 'KW')
+        # take 2/3 of most common labels
+        y, label_names = labels_of(df, 'KW', p = 0.66)
         clf = classify_cancer(X, y, label_names)
         joblib.dump(clf, clf_filename)
         with open(labels_filename, 'w') as f:
