@@ -8,8 +8,9 @@ def read_article(lines):
         match = re.match("[A-Z0-9]{2}\s+-",line)
         if match:
             key,value = line[:2], line[match.span()[1]:].strip()
-            if key in article: article[key] += "," + value
-            else: article[key] = value
+            # keywords to list
+            if key in article: article[key] += [value]
+            else: article[key] = [value]
     return article
 
 def read_ris_lines(lines):

@@ -37,24 +37,39 @@ def features_of(data):
     '''
     Load and vectorize features
     '''
+    def concat_list_(values):
+        if type(values) is list:
+            return ','.join(values).decode('ascii', 'ignore')
+        else:
+            return ''
+    def extract_search_terms(kw):
+        if kw.startswith('quelle'):
+            return kw.split(',')[1]
+        else:
+            return kw
+
+    # TODO: use data.KW quelle search keywords here, too
+
     # print("Vectorizing title character ngrams")
     # titleVectorizer = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4),n_features=2**15)
     # titleVects = titleVectorizer.fit_transform(df.fulltitle.fillna(""))
     print("Vectorizing primary dates")
-    dates = HashingVectorizer(n_features=16).fit_transform(data.Y1.fillna(""))
+    dates = HashingVectorizer(n_features=16).fit_transform(data.Y1.map(concat_list_))
     print("Vectorizing titles")
-    titles = HashingVectorizer(n_features=2**8).fit_transform(data.T1.fillna(""))
+    titles = HashingVectorizer(n_features=2**8).fit_transform(data.T1.map(concat_list_))
     print("Vectorizing authors")
-    authors = HashingVectorizer(n_features=2**8).fit_transform(data.A1.fillna(""))
+    authors = HashingVectorizer(n_features=2**8).fit_transform(data.A1.map(concat_list_))
     print("Vectorizing abstracts")
-    abstracts = HashingVectorizer(n_features=2**15).fit_transform(data.N2.fillna(""))
+    abstracts = HashingVectorizer(n_features=2**15).fit_transform(data.N2.map(concat_list_))
     X = hstack((dates,titles,authors,abstracts))
     print("Extracted feature vectors with %d dimensions"%X.shape[-1])
     return X
 
-def clean_kws(kws):
-    kwt = kws.lower().split(",")
-    kwt = filter(lambda kw: kw not in ['', 'quelle', 'ovid', 'systematisch'], kwt)
+def clean_kws(kwt):
+    kwt = map(lambda kw: kw.lower(), kwt)
+    # this is filtering out quelle search query terms
+    kwt = filter(lambda kw: not kw.startswith('quelle,'), kwt)
+    # kwt = map(extract_search_terms, kwt)
     kwt = filter(lambda kw: not kw.startswith('20'), kwt)
     return kwt
 
