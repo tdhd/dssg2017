@@ -78,22 +78,22 @@ def labels_of(data, label_col, p):
     import pandas as pd
 
     print('data label head')
-    print(data[label_col].head())
+    print(data[label_col].head(15))
     data[label_col] = data[label_col].apply(clean_kws)
 
     kw = 'keyword'
     kws = pd.DataFrame({kw: list(itertools.chain(*data[label_col]))})
     kws_r = 1.0*kws.groupby(kw).agg({kw: np.size}).sort_values(kw, ascending=False)/kws.shape[0]
-    print('kws_r head')
-    print(kws_r.head())
+    print('relative kw frequencies')
+    print(kws_r.head(15))
     cutoff = np.argmin(np.abs(kws_r.cumsum() - p).values) + 1
-    print('cutoff {}'.format(cutoff))
+    print('label cutoff at {}/{}'.format(cutoff, kws_r.shape[0]))
 
-    print('kws head')
-    valid_kws = kws[:cutoff]
-    print(valid_kws)
+    # print('kws head')
+    # valid_kws = kws[:cutoff]
+    # print(valid_kws)
 
-    print('kws_r label head')
+    print('all considered keywords')
     valid_kws = list(kws_r[:cutoff].index)
     print(valid_kws)
 
