@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>DKG Tagger</title>
+
+    <meta name="description" content="Source code generated using layoutit.com">
+    <meta name="author" content="LayoutIt!">
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+  </head>
+
+<body>
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-md-12">
+			<h1 class="text-center">
+				Krebsgesellschaft Tagger
+			</h1>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-4">
+			<h2>
+				File-Upload
+			</h2>
+			<p>
+				Here you can upload training and test RIS files.
+			</p>
+			<dl>
+				<dt>
+					Training RIS files
+				</dt>
+				<dd>
+					The training RIS file should contain at least the fields KW, Y1, T1, A1 and N2. The initial
+          training of the model will take a few minutes, the page will keep loading during that time and finishes
+          once model training is done.
+				</dd>
+				<dt>
+					Test RIS files
+				</dt>
+				<dd>
+          The test RIS file should contain all of the fields as in the training RIS file, except the KW entries.
+          The KW entries are going to be predicted for the uploaded articles.
+				</dd>
+			</dl>
+			<h3>
+				Training RIS File
+			</h3>
+      <form action="/cancer/", method=post enctype=multipart/form-data>
+        <input type=file name=file> <input type=submit name=train value=train>
+      </form>
+      <h3>
+				Test RIS File
+			</h3>
+      <form action="/cancer/", method=post enctype=multipart/form-data>
+        <input type=file name=file><input type=submit name=test value=test>
+      </form>
+		</div>
+		<div class="col-md-4">
+			<h2>
+				Keyword Predictions
+			</h2>
+			<p>
+        Here you can find the predicted keywords with their probabilities.
+			</p>
+			<dl>
+				<dt>
+					Output format
+				</dt>
+				<dd>
+          Each article in the test RIS file is presented in one line in the table below.
+          The articles in the table have the same order as the test RIS file you have uploaded.
+          The first two columns show the article index, starting from 0, and the article title for reference.
+          The <b>Keywords</b> column shows the predicted keywords with their respective scores, where 100% means
+          that the model is quite sure. The lower that value the less sure the model in that particular keyword
+          prediction.
+				</dd>
+			</dl>
+			<div class="row">
+				<div class="col-md-12">
+					<table class="table table-bordered">
+						<thead>
+							<tr>
+								<th>
+									#
+								</th>
+								<th>
+									Paper Title
+								</th>
+								<th>
+									Keywords
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+              {% for result in results %}
+                <tr>
+                  <td>{{ result.index }}</td>
+                  <td>{{ result.title }}</td>
+                  <td>
+                    {% for label, proba in result.labels %}
+                      <b>{{ label }}</b>:<i>{{ proba }}%</i><br>
+                    {% endfor %}
+                  </td>
+                </tr>
+              {% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-4">
+			<h2>
+				Help
+			</h2>
+			<p>
+        More detailed description here. Click <a href="model">here</a> for more detailed model information.
+			</p>
+			<dl>
+				<dt>
+					Description lists
+				</dt>
+				<dd>
+					A description list is perfect for defining terms.
+				</dd>
+				<dt>
+					Euismod
+				</dt>
+				<dd>
+					Vestibulum id ligula porta felis euismod semper eget lacinia odio sem nec elit.
+				</dd>
+				<dd>
+					Donec id elit non mi porta gravida at eget metus.
+				</dd>
+				<dt>
+					Malesuada porta
+				</dt>
+				<dd>
+					Etiam porta sem malesuada magna mollis euismod.
+				</dd>
+				<dt>
+					Felis euismod semper eget lacinia
+				</dt>
+				<dd>
+					Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus.
+				</dd>
+			</dl>
+		</div>
+	</div>
+</div>
+</body>
+</html>
