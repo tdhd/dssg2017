@@ -118,6 +118,14 @@ def inference(request):
         }
     )
 
+def update_model_with_feedback():
+    """
+    moves inference documents with feedback to train corpus and updates the model including that data.
+    """
+    import cancer.model_api
+    # TODO: move data
+    cancer.model_api.model.update_model()
+
 
 def feedback(request):
     """
@@ -133,6 +141,11 @@ def feedback(request):
 
     depending on 'vote' the keyword is either added or removed from the articles keywords.
     """
+    should_retrain = False
+    if should_retrain:
+        update_model_with_feedback()
+
+
     request_body = json.loads(request.body)
 
     if request_body['vote'] == 'OK':

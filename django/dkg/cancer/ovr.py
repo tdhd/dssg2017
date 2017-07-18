@@ -110,6 +110,7 @@ def labels_of(data, label_col, p):
     print("Vectorized %d labels in %d dimensions"%(y.shape[-1],y.shape[1]))
     return y, labelVectorizer.classes_
 
+
 def classify_cancer(X, y, labelNames):
     '''
     Runs a multilabel classification experiment

@@ -9,6 +9,28 @@ ris_article_sources = (
 )
 
 
+def all_articles_with_keywords():
+    """
+    Returns all joined articles with tab-separated keywords in one column.
+    One article per row.
+    """
+    return RISArticle.objects.raw(
+        """
+        SELECT
+            a.id,
+            MAX(a.title) title,
+            MAX(a.abstract) abstract,
+            MAX(a.article_set) article_set,
+            GROUP_CONCAT(akw.keyword, '\t') ts_keywords
+        FROM cancer_risarticle a
+        INNER JOIN cancer_risarticlekeyword akw
+            ON akw.ris_article_id == a.id
+        GROUP BY
+            a.id
+        """
+    )
+
+
 class RISArticle(models.Model):
     title = models.TextField()
     abstract = models.TextField()
