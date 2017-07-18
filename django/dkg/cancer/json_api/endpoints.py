@@ -78,9 +78,19 @@ def inference(request):
                 'title': '...',
                 'abstract': '...
             }
-        :return: list of (article-id, predicted clear-text labels).
+        :return: same as input dictionary but with added keys:
+            {
+                'labels': [
+                    {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
+                    {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
+                ]
+            }
         """
-        return ['harn,1-karz', 'krk,4-med-adj']
+        article['labels'] = [
+            {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
+            {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
+        ]
+        return article
 
     request_body = json.loads(request.body)
 
@@ -95,28 +105,27 @@ def inference(request):
         # save article
         db_article.save()
 
-        predicted_labels = label_predictions_for(article)
+        article_with_labels = label_predictions_for(article)
+
         # save all keywords for that article
         keywords = [
-            RISArticleKeyword(ris_article=db_article, keyword=kw, annotator_name="scikit-model-1.0")
-            for kw in label_predictions_for(article)
+            RISArticleKeyword(ris_article=db_article, keyword=label['name'], annotator_name="scikit-model-1.0")
+            for label in article_with_labels['labels']
         ]
 
         for keyword in keywords:
             keyword.save()
 
             article_predictions.append(
-            {
-                'article_id': db_article.id,
-                'predicted_keywords': predicted_labels
-            }
-        )
+                article_with_labels
+            )
 
     return JsonResponse(
         {
             'article_predictions': article_predictions
         }
     )
+
 
 def update_model_with_feedback():
     """
