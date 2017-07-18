@@ -1,6 +1,7 @@
 import json # need double quotes in json POST bodies
 from django.http import JsonResponse, HttpResponse
 from cancer.models import RISArticle, RISArticleKeyword
+import cancer.model_api.model
 
 
 def train(request):
@@ -18,10 +19,15 @@ def train(request):
         }
 
     and stores the data in disk-backed storage.
+    Additionally, calling this endpoint will train the model on all of the training data uploaded.
 
     :param request: HTTP-request carrying all RIS article information.
     :return: http-status-code 200 in case of success.
     """
+    # delete all training data
+    RISArticle.objects.filter(article_set='TRAIN').delete()
+
+    # repopulate
     request_body = json.loads(request.body)
     for article in request_body['articles']:
         db_article = RISArticle(
@@ -37,12 +43,16 @@ def train(request):
             RISArticleKeyword(
                 ris_article=db_article,
                 keyword=kw,
-                annotator_name="json_train_upload_groundtruth"
+                annotator_name="json_train_upload_ground_truth"
             ) for kw in article['keywords']
         ]
 
         for keyword in keywords:
             keyword.save()
+
+    # retrain model and save to disk
+    # TODO: path should come from config
+    cancer.model_api.model.update_model('/tmp/test.pkl')
 
     return HttpResponse(status=200)
 
@@ -71,6 +81,7 @@ def inference(request):
     def label_predictions_for(article):
         """
         TODO: implement with scikit-backed model.
+        TODO: move this model_api.model.py.
 
         :param article:
             article is a dictionary where the keys are the feature names, e.g.:
@@ -92,10 +103,11 @@ def inference(request):
         ]
         return article
 
+    # delete all inference data
+    RISArticle.objects.filter(article_set='INFERENCE').delete()
+
     request_body = json.loads(request.body)
-
     article_predictions = []
-
     for article in request_body['articles']:
         db_article = RISArticle(
             title=article['title'],
@@ -120,6 +132,8 @@ def inference(request):
                 article_with_labels
             )
 
+    # TODO: active learning prio strategy here
+
     return JsonResponse(
         {
             'article_predictions': article_predictions
@@ -132,7 +146,7 @@ def update_model_with_feedback():
     moves inference documents with feedback to train corpus and updates the model including that data.
     """
     import cancer.model_api
-    # TODO: move data
+    # TODO: move data from INFERENCE to TRAIN
     cancer.model_api.model.update_model()
 
 
@@ -153,7 +167,6 @@ def feedback(request):
     should_retrain = False
     if should_retrain:
         update_model_with_feedback()
-
 
     request_body = json.loads(request.body)
 

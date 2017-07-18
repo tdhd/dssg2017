@@ -36,15 +36,27 @@ def train_articles_adapter(model_articles):
     return X, Y, mlb.classes_
 
 
+def inference_with_model():
+    import cancer.models
+    inference_articles = cancer.models.RISArticle.objects.filter(article_set='INFERENCE').all()
+    # TODO: encode data
+
+    # TODO: path to config
+    clf = load_model('/tmp/test.pkl')
+    probas = clf.predict_proba(X)
+
+    return probas
+
+
 def train_model():
     """
     model selection and evaluation with current set of training articles
     :return: scikit-learn classifier.
     """
-    from cancer.models import all_articles_with_keywords
+    from cancer.models import all_training_articles_with_keywods
     import cancer.ovr
     # one row per keyword article group
-    articles_with_keywords = all_articles_with_keywords()
+    articles_with_keywords = all_training_articles_with_keywods()
     X, Y, Y_classes = train_articles_adapter(articles_with_keywords)
     print X.shape, Y.shape, Y_classes
     return cancer.ovr.classify_cancer(X, Y, Y_classes)
@@ -57,4 +69,10 @@ def update_model(save_path):
     :param save_path: path to where to save classifier to.
     """
     clf = train_model()
-    # TODO: dump clf
+    from sklearn.externals import joblib
+    joblib.dump(clf, save_path)
+
+
+def load_model(save_path):
+    from sklearn.externals import joblib
+    return joblib.load(save_path)

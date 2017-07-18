@@ -9,7 +9,7 @@ ris_article_sources = (
 )
 
 
-def all_articles_with_keywords():
+def all_training_articles_with_keywods():
     """
     Returns all joined articles with tab-separated keywords in one column.
     One article per row.
