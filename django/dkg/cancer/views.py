@@ -2,17 +2,13 @@
 from __future__ import unicode_literals
 
 from django.shortcuts import render
-from django.http import HttpResponse
-from django.shortcuts import render
 
 from ris import read_ris_lines
 
 from ovr import labels_of, features_of, classify_cancer, clean_kws
 
-from sklearn.externals import joblib
 import json
-import pickle
-import numpy as np
+
 
 def KW_stats_from(df):
     import pandas as pd
@@ -30,6 +26,7 @@ def KW_stats_from(df):
     print(agg.head(150))
     print('{} distinct labels'.format(agg.shape[0]))
 
+
 def df_from(ris_contents):
     ris_lines = ris_contents.decode('ascii', 'ignore').split('\n')
     df = read_ris_lines(ris_lines)
@@ -37,7 +34,16 @@ def df_from(ris_contents):
     # print(df.head())
     return df
 
+
 def model(request):
+    """
+    render model selection detail page.
+
+    incomplete atm.
+
+    :param request:
+    :return:
+    """
     metrics = json.load(open("multilabel_classification_metrics.json","rt"))
     print(metrics)
     def unzip_metric(metrics, key, t):
@@ -58,85 +64,92 @@ def model(request):
     }
     return render(request, 'cancer/model.html', context)
 
+
+def ui_ris_upload_adapter(df, article_set):
+    """
+    processes the parsed dataframe, s.t. it becomes use-able by the json api.
+
+    :param df: RIS parsed pandas.DataFrame
+    :param article_set: either 'TRAIN' or 'INFERENCE'
+    :return: {
+        'body': 'json encoded data...'
+    }
+    """
+
+    def concat_list_(values):
+        if type(values) is list:
+            return ','.join(values).decode('ascii', 'ignore')
+        else:
+            return ''
+
+    import json
+
+    articles = []
+
+    # title
+    df['T1'] = df.T1.map(concat_list_)
+    # abstract
+    df['N2'] = df.N2.map(concat_list_)
+
+    for _, row in df.iterrows():
+        entry = {
+            'title': row.T1,
+            'abstract': row.N2
+        }
+
+        if article_set == 'TRAIN':
+            entry['keywords'] = row.KW
+
+        articles.append(entry)
+
+    # quick hack to emulate django request
+    class AdapterRequest(object):
+        def __init__(self, body):
+            self.body = body
+
+    serialized_body = json.dumps(
+        {
+            'articles': articles
+        }
+    )
+    adapted_request = AdapterRequest(
+        serialized_body
+    )
+    return adapted_request
+
+
 def index(request):
-    # print(request.body)
-    clf_filename = 'clf.pkl'
-    labels_filename = 'labels.pkl'
+    import cancer.json_api.endpoints
+
     results = []
+
     if 'train' in request.POST:
         print('train')
         df = df_from(request.FILES['file'].read())
-        KW_stats_from(df)
-        # df = df[0:15000]
-        X = features_of(df)
-        # take 2/3 of most common labels
-        y, label_names = labels_of(df, 'KW', p = 0.66)
-        clf = classify_cancer(X, y, label_names)
-        joblib.dump(clf, clf_filename)
-        with open(labels_filename, 'w') as f:
-            # f.write(json.dumps(label_names))
-            pickle.dump(label_names, f)
-        print(clf)
+        # train model, also dumps classifier and clear text label data to disk
+        cancer.json_api.endpoints.train(
+            ui_ris_upload_adapter(df, 'TRAIN')
+        )
     elif 'test' in request.POST:
-
-        clf = joblib.load(clf_filename)
-        print(clf)
-
-        # TODO: use feature pipeline and do not encode independently
-
         df = df_from(request.FILES['file'].read())
-        X = features_of(df)
+        # predictions is an instance of JsonResponse django
+        predictions = cancer.json_api.endpoints.inference(
+            ui_ris_upload_adapter(df, 'INFERENCE')
+        )
+        predictions = json.loads(predictions.content)
 
-        with open(labels_filename, 'r') as f:
-            label_names = pickle.load(f)
-
-        y = clf.predict_proba(X)[0:300]
-
-        '''
-        TODO:
-            - also return precisions for all labels
-        '''
-
-        results = []
-        for idx in range(y.shape[0]):
-            row = y[idx,:]
-            title = df.loc[idx,'T1']
-            labels_with_probas = [(label_names[l], 100.0*np.round(row[l], 2)) for l in row.argsort()[::-1]]
-            labels_with_probas = filter(lambda lp: lp[1] > 0.01, labels_with_probas)
-            result = {
-                'index': idx,
-                'title': title,
-                'labels': labels_with_probas
+        for article in predictions['article_predictions']:
+            entry = {
+                'index': 0,
+                'title': article['title'],
+                'labels': [(kw['keyword'], kw['probability']) for kw in article['keywords']]#[('meh', 1.0)]
             }
-            results.append(result)
-
+            results.append(entry)
     else:
         print('GET')
 
     context = {
         'results': results,
     }
-    return render(request, 'cancer/bs.html', context)
 
-# def upload_train(request):
-#     df = df_from(request.FILES['file'].read())
-#
-#     KW_stats_from(df)
-#
-#     p_ausschluss = 100.0*df.KW.str.contains('Ausschluss').sum()/df.shape[0]
-#     p_basis = 100.0*df.KW.str.contains('basis').sum()/df.shape[0]
-#     print(p_basis)
-#
-#     print(df['N2'].head())
-#     df = df[0:5000]
-#
-#     X = features_of(df)
-#     y, label_names = labels_of(df, 'KW')
-#     clf = classify_cancer(X, y, label_names)
-#     print(clf)
-#     return HttpResponse('uploaded file with {} articles, {}% with Ausschluss'.format(df.shape[0], p_ausschluss))
-#
-# def upload_pred(request):
-#     df = df_from(request.FILES['file'].read())
-#     context = {} #{'latest_question_list': [1, 2, 3]}
-#     return render(request, 'cancer/preds.html', context)
+    return render(request, 'cancer/bs.html', context)
