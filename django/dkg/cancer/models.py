@@ -9,7 +9,7 @@ ris_article_sources = (
 )
 
 
-def all_training_articles_with_keywods():
+def all_articles_by(article_set):
     """
     Returns all joined articles with tab-separated keywords in one column.
     One article per row.
@@ -21,13 +21,16 @@ def all_training_articles_with_keywods():
             MAX(a.title) title,
             MAX(a.abstract) abstract,
             MAX(a.article_set) article_set,
-            GROUP_CONCAT(akw.keyword, '\t') ts_keywords
+            GROUP_CONCAT(akw.keyword, '\t') ts_keywords,
+            GROUP_CONCAT(akw.keyword_probability, '\t') ts_keyword_probabilities
         FROM cancer_risarticle a
         INNER JOIN cancer_risarticlekeyword akw
             ON akw.ris_article_id == a.id
+        WHERE
+            a.article_set = '{}'
         GROUP BY
             a.id
-        """
+        """.format(article_set)
     )
 
 
@@ -40,4 +43,5 @@ class RISArticle(models.Model):
 class RISArticleKeyword(models.Model):
     ris_article = models.ForeignKey(RISArticle, on_delete=models.CASCADE)
     keyword = models.TextField()
+    keyword_probability = models.FloatField() # in [0, 1]
     annotator_name = models.TextField()

@@ -1,7 +1,9 @@
 import json # need double quotes in json POST bodies
 from django.http import JsonResponse, HttpResponse
-from cancer.models import RISArticle, RISArticleKeyword
+from cancer.models import RISArticle, RISArticleKeyword, all_articles_by
 import cancer.model_api.model
+import django.conf
+import scipy.special
 
 
 def train(request):
@@ -43,6 +45,7 @@ def train(request):
             RISArticleKeyword(
                 ris_article=db_article,
                 keyword=kw,
+                keyword_probability=1.0,
                 annotator_name="json_train_upload_ground_truth"
             ) for kw in article['keywords']
         ]
@@ -51,8 +54,10 @@ def train(request):
             keyword.save()
 
     # retrain model and save to disk
-    # TODO: path should come from config
-    cancer.model_api.model.train_model('/tmp/test.pkl', '/tmp/yclasses')
+    cancer.model_api.model.train_model(
+        django.conf.settings.MODEL_PATH,
+        django.conf.settings.LABEL_CODES_PATH
+    )
 
     return HttpResponse(status=200)
 
@@ -77,31 +82,7 @@ def inference(request):
     :param request: HTTP-request carrying all RIS articles (without keywords)
     :return: json response with all of the predicted labels from the uploaded RIS articles.
     """
-
-    # def label_predictions_for(article):
-    #     """
-    #     TODO: implement with scikit-backed model.
-    #     TODO: move this model_api.model.py.
-    #
-    #     :param article:
-    #         article is a dictionary where the keys are the feature names, e.g.:
-    #         {
-    #             'title': '...',
-    #             'abstract': '...
-    #         }
-    #     :return: same as input dictionary but with added keys:
-    #         {
-    #             'labels': [
-    #                 {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
-    #                 {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
-    #             ]
-    #         }
-    #     """
-    #     article['labels'] = [
-    #         {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
-    #         {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
-    #     ]
-    #     return article
+    import cancer.model_api.model
 
     # delete all inference data
     RISArticle.objects.filter(article_set='INFERENCE').delete()
@@ -117,34 +98,65 @@ def inference(request):
         # save article
         db_article.save()
 
-    # run inference on the articles
-    predictions = cancer.model_api.model.inference_with_model('/tmp/test.pkl', '/tmp/yclasses')
-    print predictions
+    # fetch all persisted articles again
+    db_articles = RISArticle.objects.filter(article_set='INFERENCE').all()
 
-    # TODO: decode predictions with metrics (distance to hyperplanes, ...) and store in db
-    #     article_with_labels = label_predictions_for(article)
-    #
-    #     # save all keywords for that article
-    #     keywords = [
-    #         RISArticleKeyword(ris_article=db_article, keyword=label['name'], annotator_name="scikit-model-1.0")
-    #         for label in article_with_labels['labels']
-    #     ]
-    #
-    #     for keyword in keywords:
-    #         keyword.save()
-    #
-    #         article_predictions.append(
-    #             article_with_labels
-    #         )
-    #
-    # # TODO: active learning prio strategy here
-    #
-    # return JsonResponse(
-    #     {
-    #         'article_predictions': article_predictions
-    #     }
-    # )
-    return HttpResponse(200)
+    # run inference on the articles
+    label_probas, label_names = cancer.model_api.model.inference_with_model(
+        db_articles,
+        django.conf.settings.MODEL_PATH,
+        django.conf.settings.LABEL_CODES_PATH
+    )
+
+    # save predicted keywords with their associated probability
+    for index in range(label_probas.shape[0]):
+        for keyword_probability, keyword in zip(label_probas[index, :], label_names):
+            kw = RISArticleKeyword(
+                ris_article=db_articles[index],
+                keyword=keyword,
+                keyword_probability=keyword_probability,
+                annotator_name="scikit-model-1.0"
+            )
+            kw.save()
+
+    # select all of the inference articles with keywords
+    db_articles_with_keywords = all_articles_by('INFERENCE')
+    all_inference_articles = []
+    for article in db_articles_with_keywords:
+
+        entry = {
+            'article_id': article.id,
+            'title': article.title,
+            'abstract': article.abstract
+        }
+
+        entry_predictions = []
+        for keyword, keyword_probability in zip(article.ts_keywords.split("\t"), article.ts_keyword_probabilities.split("\t")):
+            distance_to_hyperplane = scipy.special.logit(float(keyword_probability))
+
+            entry_predictions.append(
+                {
+                    'keyword': keyword,
+                    'probability': keyword_probability,
+                    'distance_to_hyperplane': distance_to_hyperplane
+                }
+            )
+
+        entry['keywords'] = entry_predictions
+        all_inference_articles.append(entry)
+
+    # TODO: make active learning strategy part of POST-request
+    # active learning component for sorting
+    import cancer.active_learning.selection_strategies
+    sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
+        all_inference_articles
+    )
+
+    return JsonResponse(
+        {
+            'article_predictions': sorted_articles
+        }
+    )
 
 
 def update_model_with_feedback():
@@ -183,6 +195,7 @@ def feedback(request):
         keyword = RISArticleKeyword(
             ris_article=article,
             keyword=request_body['keyword'],
+            keyword_probability=1.0,
             annotator_name=request_body['annotator_name']
         )
         keyword.save()
@@ -191,6 +204,7 @@ def feedback(request):
         keyword = RISArticleKeyword.objects.filter(
             ris_article=article,
             keyword=request_body['keyword'],
+            keyword_probability=1.0,
             annotator_name=request_body['annotator_name']
         )
         keyword.delete()

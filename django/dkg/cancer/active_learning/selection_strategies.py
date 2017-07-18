@@ -4,25 +4,37 @@ import numpy
 class SelectionStrategies(object):
 
     @staticmethod
-    def random(classifier, X):
-        """
-        Compute random ordering of X indices.
-
-        :param classifier: scikit estimator.
-        :param X: numpy array of shape (n, m).
-        :return: n-element list of indices.
-        """
-        idcs = list(range(X.shape[0]))
-        numpy.random.shuffle(idcs)
-        return idcs
+    def default(article_predictions):
+        return SelectionStrategies.closest_to_decision_boundary(article_predictions)
 
     @staticmethod
-    def closest_to_decision_boundary(classifier, X):
+    def random(article_predictions):
         """
-        Compute ordering of X indices by distance to hyperplanes.
+        Return random ordering of article predictions.
 
-        :param classifier: scikit estimator.
-        :param X: numpy array of shape (n, m).
-        :return: n-element list of indices.
+        :param article_predictions: list of articles with keyword predictions.
+        :return: randomly shuffled article_predictions.
         """
-        pass
+        numpy.random.shuffle(article_predictions)
+        return article_predictions
+
+    @staticmethod
+    def closest_to_decision_boundary(article_predictions, ascending=True):
+        """
+        Return articles by average distances to decision boundaries.
+
+        :param article_predictions: list of articles with keyword predictions.
+        :param ascending: sort article predictions by mean distance to hyperplane ascending.
+        :return: article_predictions sorted by mean distance to hyperplane.
+        """
+        for article in article_predictions:
+            mean_distance = numpy.average(
+                map(lambda entry: numpy.abs(entry['distance_to_hyperplane']), article['keywords'])
+            )
+            article['mean_distance_to_hyperplane'] = mean_distance
+
+        article_predictions.sort(
+            key = lambda e: e['mean_distance_to_hyperplane'],
+            reverse=ascending
+        )
+        return article_predictions
