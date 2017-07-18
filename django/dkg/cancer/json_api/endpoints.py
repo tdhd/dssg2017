@@ -52,7 +52,7 @@ def train(request):
 
     # retrain model and save to disk
     # TODO: path should come from config
-    cancer.model_api.model.update_model('/tmp/test.pkl')
+    cancer.model_api.model.train_model('/tmp/test.pkl', '/tmp/yclasses')
 
     return HttpResponse(status=200)
 
@@ -78,36 +78,36 @@ def inference(request):
     :return: json response with all of the predicted labels from the uploaded RIS articles.
     """
 
-    def label_predictions_for(article):
-        """
-        TODO: implement with scikit-backed model.
-        TODO: move this model_api.model.py.
-
-        :param article:
-            article is a dictionary where the keys are the feature names, e.g.:
-            {
-                'title': '...',
-                'abstract': '...
-            }
-        :return: same as input dictionary but with added keys:
-            {
-                'labels': [
-                    {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
-                    {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
-                ]
-            }
-        """
-        article['labels'] = [
-            {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
-            {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
-        ]
-        return article
+    # def label_predictions_for(article):
+    #     """
+    #     TODO: implement with scikit-backed model.
+    #     TODO: move this model_api.model.py.
+    #
+    #     :param article:
+    #         article is a dictionary where the keys are the feature names, e.g.:
+    #         {
+    #             'title': '...',
+    #             'abstract': '...
+    #         }
+    #     :return: same as input dictionary but with added keys:
+    #         {
+    #             'labels': [
+    #                 {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
+    #                 {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
+    #             ]
+    #         }
+    #     """
+    #     article['labels'] = [
+    #         {'name': '4-harn,carc', 'dist-to-hyperplane': 0.1},
+    #         {'name': '4-harn,pall', 'dist-to-hyperplane': 0.2}
+    #     ]
+    #     return article
 
     # delete all inference data
     RISArticle.objects.filter(article_set='INFERENCE').delete()
 
     request_body = json.loads(request.body)
-    article_predictions = []
+    # store all articles flagged as inference
     for article in request_body['articles']:
         db_article = RISArticle(
             title=article['title'],
@@ -117,36 +117,43 @@ def inference(request):
         # save article
         db_article.save()
 
-        article_with_labels = label_predictions_for(article)
+    # run inference on the articles
+    predictions = cancer.model_api.model.inference_with_model('/tmp/test.pkl', '/tmp/yclasses')
+    print predictions
 
-        # save all keywords for that article
-        keywords = [
-            RISArticleKeyword(ris_article=db_article, keyword=label['name'], annotator_name="scikit-model-1.0")
-            for label in article_with_labels['labels']
-        ]
-
-        for keyword in keywords:
-            keyword.save()
-
-            article_predictions.append(
-                article_with_labels
-            )
-
-    # TODO: active learning prio strategy here
-
-    return JsonResponse(
-        {
-            'article_predictions': article_predictions
-        }
-    )
+    # TODO: decode predictions with metrics (distance to hyperplanes, ...) and store in db
+    #     article_with_labels = label_predictions_for(article)
+    #
+    #     # save all keywords for that article
+    #     keywords = [
+    #         RISArticleKeyword(ris_article=db_article, keyword=label['name'], annotator_name="scikit-model-1.0")
+    #         for label in article_with_labels['labels']
+    #     ]
+    #
+    #     for keyword in keywords:
+    #         keyword.save()
+    #
+    #         article_predictions.append(
+    #             article_with_labels
+    #         )
+    #
+    # # TODO: active learning prio strategy here
+    #
+    # return JsonResponse(
+    #     {
+    #         'article_predictions': article_predictions
+    #     }
+    # )
+    return HttpResponse(200)
 
 
 def update_model_with_feedback():
     """
     moves inference documents with feedback to train corpus and updates the model including that data.
     """
-    import cancer.model_api
     # TODO: move data from INFERENCE to TRAIN
+
+    # rerun model selection and persist
     cancer.model_api.model.update_model()
 
 
