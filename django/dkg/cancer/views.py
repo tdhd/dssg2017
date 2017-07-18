@@ -140,7 +140,7 @@ def index(request):
 
         for article in predictions['article_predictions']:
             entry = {
-                'index': 0,
+                'index': article['article_id'],
                 'title': article['title'],
                 'labels': [(kw['keyword'], kw['probability']) for kw in article['keywords']]#[('meh', 1.0)]
             }

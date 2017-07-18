@@ -42,6 +42,7 @@ def Y_encoder(model_articles):
         kwt = filter(lambda kw: not kw.startswith('quelle,') and not kw.startswith('20'), keywords_lowered)
         return kwt
 
+    # TODO: label cleaning and pruning, see ovr.py clean_kws/labels_of functions
     keywords = [preprocess_keywords(article.ts_keywords.split("\t")) for article in model_articles]
     mlb = sklearn.preprocessing.MultiLabelBinarizer(sparse_output=True)
     Y = mlb.fit_transform(keywords)

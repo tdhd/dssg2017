@@ -30,6 +30,7 @@ def train(request):
     RISArticle.objects.filter(article_set='TRAIN').delete()
 
     # repopulate
+    # FIXME: need to rewrite as batch inserts, too slow
     request_body = json.loads(request.body)
     for article in request_body['articles']:
         db_article = RISArticle(
@@ -89,6 +90,7 @@ def inference(request):
 
     request_body = json.loads(request.body)
     # store all articles flagged as inference
+    # FIXME: need to rewrite as batch inserts, too slow
     for article in request_body['articles']:
         db_article = RISArticle(
             title=article['title'],
