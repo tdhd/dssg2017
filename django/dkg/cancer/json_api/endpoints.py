@@ -1,30 +1,46 @@
 import json # need double quotes in json POST bodies
-from django.http import JsonResponse
-from cancer.models import TrainingArticle, InferenceArticle
+from django.http import JsonResponse, HttpResponse
+from cancer.models import RISArticle, RISArticleKeyword
 
 
 def train(request):
     """
-    Receives a POST-request with the following body: ?
+    Receives a POST-request with the following body:
+        {
+          'articles': [
+            {
+              'title': 'carcinomia',
+              'abstract': '...',
+              'keywords': ['a', 'b', ...]
+            },
+            ...
+          ]
+        }
 
-    Stores the data only.
+    and stores the data in disk-backed storage.
 
     :param request: HTTP-request carrying all RIS article information.
-    :param persistence: persistence object.
-    :return: possible HTTP-status codes: 200, 400.
+    :return: http-status-code 200 in case of success.
     """
     request_body = json.loads(request.body)
-    print request_body
-    # store all parsed articles
-    article = TrainingArticle(
-        title='some article',
-        abstract='abstract of article',
-        authors='a\tb',
-        keywords='4,harn-prog\t1,harn-pall'
-    )
-    article.save()
+    for article in request_body['articles']:
+        db_article = RISArticle(
+            title=article['title'],
+            abstract=article['abstract'],
+            is_training_set=True
+        )
+        # save article
+        db_article.save()
 
-    return JsonResponse({'foo': 'bar'})
+        # save all keywords for that article
+        keywords = [
+            RISArticleKeyword(ris_article=db_article, keyword=kw, annotater_name="123") for kw in article['keywords']
+        ]
+
+        for keyword in keywords:
+            keyword.save()
+
+    return HttpResponse(status=200)
 
 
 def inference(request):
