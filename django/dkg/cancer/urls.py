@@ -7,7 +7,7 @@ urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'model', views.model, name='model'),
 
-    url(r'train', json_api.train, name='train'),
-    url(r'inference', json_api.inference, name='inference'),
-    url(r'feedback', json_api.feedback, name='feedback'),
+    url(r'json/train', json_api.train, name='train'),
+    url(r'json/inference', json_api.inference, name='inference'),
+    url(r'json/feedback', json_api.feedback, name='feedback'),
 ]
