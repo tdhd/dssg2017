@@ -17,6 +17,31 @@
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
+    <script>
+        function send_feedback() {
+            // Sending and receiving data in JSON format using POST mothod
+            //
+            var xhr = new XMLHttpRequest();
+            var url = "http://---:---@localhost:8000/cancer/json/feedback";
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    console.log(json);
+                }
+            };
+            var data = JSON.stringify(
+                {
+                    "article_id": 1,
+                    "vote": "OK",
+                    "keyword": "feedback_test",
+                    "annotator_name": "hello test name"
+                }
+            );
+            xhr.send(data);
+        }
+    </script>
   </head>
 
 <body>
@@ -36,6 +61,7 @@
 			<p>
 				Here you can upload training and test RIS files.
 			</p>
+            <p onclick="send_feedback()">FEEDBACK.</p>
 			<dl>
 				<dt>
 					Training RIS files

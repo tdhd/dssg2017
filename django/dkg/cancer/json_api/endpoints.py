@@ -187,9 +187,13 @@ def feedback(request):
     """
     should_retrain = False
     if should_retrain:
+        # TODO: since there are all keywords stored per default
+        # TODO: how to find a good strategy for label selection going from inf->train? (thresholding?)
         update_model_with_feedback()
 
     request_body = json.loads(request.body)
+
+    # TODO: duplicate keywords possible
 
     if request_body['vote'] == 'OK':
         article = RISArticle.objects.get(id=request_body['article_id'])
