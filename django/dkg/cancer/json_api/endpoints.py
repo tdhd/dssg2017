@@ -1,6 +1,6 @@
 import json # need double quotes in json POST bodies
 from django.http import JsonResponse, HttpResponse
-from cancer.models import RISArticle, RISArticleKeyword, all_articles_by
+from cancer.models import RISArticle, RISArticleKeyword, all_articles_by, insert_with_keywords
 import cancer.model_api.model
 import django.conf
 import scipy.special
@@ -29,30 +29,16 @@ def train(request):
     # delete all training data
     RISArticle.objects.filter(article_set='TRAIN').delete()
 
-    # repopulate
-    # FIXME: need to rewrite as batch inserts, too slow
     request_body = json.loads(request.body)
+
+    # add 1.0 as keyword_probabilities
     for article in request_body['articles']:
-        db_article = RISArticle(
-            title=article['title'],
-            abstract=article['abstract'],
-            article_set='TRAIN'
-        )
-        # save article
-        db_article.save()
+        article['keyword_probabilities'] = [1.0 for _ in range(len(article['keywords']))]
 
-        # save all keywords for that article
-        keywords = [
-            RISArticleKeyword(
-                ris_article=db_article,
-                keyword=kw,
-                keyword_probability=1.0,
-                annotator_name="json_train_upload_ground_truth"
-            ) for kw in article['keywords']
-        ]
-
-        for keyword in keywords:
-            keyword.save()
+    insert_with_keywords(
+        request_body['articles'],
+        'TRAIN'
+    )
 
     # retrain model and save to disk
     cancer.model_api.model.train_model(
@@ -86,79 +72,71 @@ def inference(request):
     import cancer.model_api.model
 
     # delete all inference data
-    RISArticle.objects.filter(article_set='INFERENCE').delete()
+    # RISArticle.objects.filter(article_set='INFERENCE').delete()
 
-    request_body = json.loads(request.body)
-    # store all articles flagged as inference
-    # FIXME: need to rewrite as batch inserts, too slow
-    for article in request_body['articles']:
-        db_article = RISArticle(
-            title=article['title'],
-            abstract=article['abstract'],
-            article_set='INFERENCE'
-        )
-        # save article
-        db_article.save()
-
-    # fetch all persisted articles again
-    db_articles = RISArticle.objects.filter(article_set='INFERENCE').all()
-
-    # run inference on the articles
-    label_probas, label_names = cancer.model_api.model.inference_with_model(
-        db_articles,
-        django.conf.settings.MODEL_PATH,
-        django.conf.settings.LABEL_CODES_PATH
-    )
-
-    # save predicted keywords with their associated probability
-    for index in range(label_probas.shape[0]):
-        for keyword_probability, keyword in zip(label_probas[index, :], label_names):
-            kw = RISArticleKeyword(
-                ris_article=db_articles[index],
-                keyword=keyword,
-                keyword_probability=keyword_probability,
-                annotator_name="scikit-model-1.0"
-            )
-            kw.save()
-
-    # select all of the inference articles with keywords
-    db_articles_with_keywords = all_articles_by('INFERENCE')
-    all_inference_articles = []
-    for article in db_articles_with_keywords:
-
-        entry = {
-            'article_id': article.id,
-            'title': article.title,
-            'abstract': article.abstract
-        }
-
-        entry_predictions = []
-        for keyword, keyword_probability in zip(article.ts_keywords.split("\t"), article.ts_keyword_probabilities.split("\t")):
-            distance_to_hyperplane = scipy.special.logit(float(keyword_probability))
-
-            entry_predictions.append(
-                {
-                    'keyword': keyword,
-                    'probability': keyword_probability,
-                    'distance_to_hyperplane': distance_to_hyperplane
-                }
-            )
-
-        entry['keywords'] = entry_predictions
-        all_inference_articles.append(entry)
-
-    # TODO: make active learning strategy part of POST-request
-    # active learning component for sorting
-    import cancer.active_learning.selection_strategies
-    sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
-        all_inference_articles
-    )
-
-    return JsonResponse(
-        {
-            'article_predictions': sorted_articles
-        }
-    )
+    # request_body = json.loads(request.body)
+    #
+    # # run inference on the given articles, stores with inferred keywords in database
+    # label_probas, label_names = cancer.model_api.model.inference_with_model(
+    #     request_body['articles'],
+    #     django.conf.settings.MODEL_PATH,
+    #     django.conf.settings.LABEL_CODES_PATH
+    # )
+    #
+    # insert_with_keywords(
+    #     request_body['articles'],
+    #     'INFERENCE'
+    # )
+    #
+    # # save predicted keywords with their associated probability
+    # for index in range(label_probas.shape[0]):
+    #     for keyword_probability, keyword in zip(label_probas[index, :], label_names):
+    #         kw = RISArticleKeyword(
+    #             ris_article=db_articles[index],
+    #             keyword=keyword,
+    #             keyword_probability=keyword_probability,
+    #             annotator_name="scikit-model-1.0"
+    #         )
+    #         kw.save()
+    #
+    # # select all of the inference articles with keywords
+    # db_articles_with_keywords = all_articles_by('INFERENCE')
+    # all_inference_articles = []
+    # for article in db_articles_with_keywords:
+    #
+    #     entry = {
+    #         'article_id': article.id,
+    #         'title': article.title,
+    #         'abstract': article.abstract
+    #     }
+    #
+    #     entry_predictions = []
+    #     for keyword, keyword_probability in zip(article.ts_keywords.split("\t"), article.ts_keyword_probabilities.split("\t")):
+    #         distance_to_hyperplane = scipy.special.logit(float(keyword_probability))
+    #
+    #         entry_predictions.append(
+    #             {
+    #                 'keyword': keyword,
+    #                 'probability': keyword_probability,
+    #                 'distance_to_hyperplane': distance_to_hyperplane
+    #             }
+    #         )
+    #
+    #     entry['keywords'] = entry_predictions
+    #     all_inference_articles.append(entry)
+    #
+    # # TODO: make active learning strategy part of POST-request
+    # # active learning component for sorting
+    # import cancer.active_learning.selection_strategies
+    # sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
+    #     all_inference_articles
+    # )
+    #
+    # return JsonResponse(
+    #     {
+    #         'article_predictions': sorted_articles
+    #     }
+    # )
 
 
 def update_model_with_feedback():
