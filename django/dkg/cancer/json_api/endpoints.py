@@ -3,6 +3,7 @@ from django.http import JsonResponse, HttpResponse
 from cancer.models import RISArticle, RISArticleKeyword, all_articles_by, insert_with_keywords
 import cancer.model_api.model
 import django.conf
+import cancer.persistence.models
 import scipy.special
 
 
@@ -26,22 +27,25 @@ def train(request):
     :param request: HTTP-request carrying all RIS article information.
     :return: http-status-code 200 in case of success.
     """
-    # delete all training data
-    RISArticle.objects.filter(article_set='TRAIN').delete()
-
     request_body = json.loads(request.body)
 
     # add 1.0 as keyword_probabilities
     for article in request_body['articles']:
-        article['keyword_probabilities'] = [1.0 for _ in range(len(article['keywords']))]
+        article_keywords = article['keywords']
+        del article['keywords']
+        # keyword, proba, annotator
+        kws = [(kw, 1.0, 'TRAIN') for kw in article_keywords]
+        article['keywords'] = kws
 
-    insert_with_keywords(
-        request_body['articles'],
-        'TRAIN'
+    persistence = cancer.persistence.models.PandasPersistence(
+        django.conf.settings.TRAIN_ARTICLES_PATH
     )
+    persistence.save_batch(request_body['articles'])
+    articles_with_keywords_and_probas = persistence.load_data()
 
     # retrain model and save to disk
     cancer.model_api.model.train_model(
+        articles_with_keywords_and_probas,
         django.conf.settings.MODEL_PATH,
         django.conf.settings.LABEL_CODES_PATH
     )
@@ -71,22 +75,37 @@ def inference(request):
     """
     import cancer.model_api.model
 
-    # delete all inference data
-    # RISArticle.objects.filter(article_set='INFERENCE').delete()
+    def inference_adapter(articles):
+        class Article(object):
+            def __init__(self, title, abstract):
+                self.title = title
+                self.abstract = abstract
 
-    # request_body = json.loads(request.body)
-    #
-    # # run inference on the given articles, stores with inferred keywords in database
-    # label_probas, label_names = cancer.model_api.model.inference_with_model(
-    #     request_body['articles'],
-    #     django.conf.settings.MODEL_PATH,
-    #     django.conf.settings.LABEL_CODES_PATH
-    # )
-    #
-    # insert_with_keywords(
-    #     request_body['articles'],
-    #     'INFERENCE'
-    # )
+        return [Article(article['title'], article['abstract']) for article in articles]
+
+    # delete all inference data
+    RISArticle.objects.filter(article_set='INFERENCE').delete()
+
+    request_body = json.loads(request.body)
+    # run inference on the given articles, stores with inferred keywords in database
+    label_probas, labels_binarized, label_names = cancer.model_api.model.inference_with_model(
+        # FIXME: temp adaption for django ORM
+        inference_adapter(request_body['articles']),
+        django.conf.settings.MODEL_PATH,
+        django.conf.settings.LABEL_CODES_PATH
+    )
+
+    print label_probas, labels_binarized, label_names
+
+    for article in request_body['articles']:
+        article['keyword_probabilities'] = [1.0 for _ in range(len(label_names))]
+        article['keywords'] = ['kwtestyolo' for _ in range(len(label_names))]
+
+    # FIXME: article.id collision
+    insert_with_keywords(
+        request_body['articles'],
+        'INFERENCE'
+    )
     #
     # # save predicted keywords with their associated probability
     # for index in range(label_probas.shape[0]):

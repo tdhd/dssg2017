@@ -124,3 +124,6 @@ STATIC_URL = '/static/'
 
 MODEL_PATH = '/tmp/model.pkl'
 LABEL_CODES_PATH = '/tmp/label_codes.pkl'
+
+TRAIN_ARTICLES_PATH = '/tmp/train.pkl'
+INFERENCE_ARTICLES_PATH = '/tmp/inference.pkl'
