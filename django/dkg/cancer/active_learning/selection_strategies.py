@@ -19,22 +19,28 @@ class SelectionStrategies(object):
         return article_predictions
 
     @staticmethod
-    def closest_to_decision_boundary(article_predictions, ascending=True):
+    def closest_to_decision_boundary(article_predictions, descending=False):
         """
         Return articles by average distances to decision boundaries.
 
         :param article_predictions: list of articles with keyword predictions.
-        :param ascending: sort article predictions by mean distance to hyperplane ascending.
+        :param descending: sort article predictions by mean distance to hyperplane descending.
         :return: article_predictions sorted by mean distance to hyperplane.
         """
         for article in article_predictions:
             mean_distance = numpy.average(
                 map(lambda entry: numpy.abs(entry['distance_to_hyperplane']), article['keywords'])
             )
-            article['mean_distance_to_hyperplane'] = mean_distance
+
+            # if there are no keywords for this article, assign fallback value for sorting
+            if numpy.isnan(mean_distance):
+                article['mean_distance_to_hyperplane'] = 1e6
+            else:
+                article['mean_distance_to_hyperplane'] = mean_distance
 
         article_predictions.sort(
-            key = lambda e: e['mean_distance_to_hyperplane'],
-            reverse=ascending
+            key=lambda e: e['mean_distance_to_hyperplane'],
+            reverse=descending
         )
+
         return article_predictions

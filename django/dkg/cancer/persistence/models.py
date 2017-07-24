@@ -19,6 +19,14 @@ class Persistence(object):
         """
         raise NotImplementedError()
 
+    def update(self, data):
+        """
+        overwrite self.save_path with current data.
+        :param data: pandas.DataFrame with columns: WRITEME
+        :return:
+        """
+        raise NotImplementedError()
+
 
 class PandasPersistence(Persistence):
     def __init__(self, save_path):
@@ -31,3 +39,6 @@ class PandasPersistence(Persistence):
     def load_data(self):
         import pandas as pd
         return pd.read_pickle(self.save_path)
+
+    def update(self, data):
+        data.to_pickle(self.save_path)

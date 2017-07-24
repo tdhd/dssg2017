@@ -5,6 +5,7 @@ import cancer.model_api.model
 import django.conf
 import cancer.persistence.models
 import scipy.special
+import numpy as np
 
 
 def train(request):
@@ -75,87 +76,66 @@ def inference(request):
     """
     import cancer.model_api.model
 
-    def inference_adapter(articles):
-        class Article(object):
-            def __init__(self, title, abstract):
-                self.title = title
-                self.abstract = abstract
-
-        return [Article(article['title'], article['abstract']) for article in articles]
-
-    # delete all inference data
-    RISArticle.objects.filter(article_set='INFERENCE').delete()
-
     request_body = json.loads(request.body)
-    # run inference on the given articles, stores with inferred keywords in database
+
+    persistence = cancer.persistence.models.PandasPersistence(
+        django.conf.settings.INFERENCE_ARTICLES_PATH
+    )
+    for article in request_body['articles']:
+        article['keywords'] = []
+    persistence.save_batch(request_body['articles'])
+
+    articles = persistence.load_data()
+
+    # inference with current model
     label_probas, labels_binarized, label_names = cancer.model_api.model.inference_with_model(
-        # FIXME: temp adaption for django ORM
-        inference_adapter(request_body['articles']),
+        articles,
         django.conf.settings.MODEL_PATH,
         django.conf.settings.LABEL_CODES_PATH
     )
 
-    print label_probas, labels_binarized, label_names
+    # threshold predicted labels
+    for index in range(articles.shape[0]):
+        article = articles.ix[index]
+        idcs = np.where(label_probas[index, :] >= django.conf.settings.INFERENCE_LABEL_THRESHOLD)
+        article['keywords'] = [
+            (name, proba, 'INFERENCE')
+            for name, proba in zip(label_names[idcs], label_probas[index, idcs][0])
+        ]
 
-    for article in request_body['articles']:
-        article['keyword_probabilities'] = [1.0 for _ in range(len(label_names))]
-        article['keywords'] = ['kwtestyolo' for _ in range(len(label_names))]
+    # update storage with inferred keywords
+    persistence.update(articles)
 
-    # FIXME: article.id collision
-    insert_with_keywords(
-        request_body['articles'],
-        'INFERENCE'
+    # template rendering
+    all_inference_articles = []
+    for index, article in articles.iterrows():
+
+        entry = {
+            'article_id': index,
+            'title': article.title,
+            'abstract': article.abstract,
+            'keywords': [
+                {
+                    'keyword': keyword,
+                    'probability': proba,
+                    'distance_to_hyperplane': scipy.special.logit(float(proba))
+                } for keyword, proba, _ in article.keywords
+            ]
+        }
+        all_inference_articles.append(entry)
+
+    # TODO: make active learning strategy part of POST-request
+    # active learning component for sorting
+    import cancer.active_learning.selection_strategies
+    sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
+        all_inference_articles
     )
-    #
-    # # save predicted keywords with their associated probability
-    # for index in range(label_probas.shape[0]):
-    #     for keyword_probability, keyword in zip(label_probas[index, :], label_names):
-    #         kw = RISArticleKeyword(
-    #             ris_article=db_articles[index],
-    #             keyword=keyword,
-    #             keyword_probability=keyword_probability,
-    #             annotator_name="scikit-model-1.0"
-    #         )
-    #         kw.save()
-    #
-    # # select all of the inference articles with keywords
-    # db_articles_with_keywords = all_articles_by('INFERENCE')
-    # all_inference_articles = []
-    # for article in db_articles_with_keywords:
-    #
-    #     entry = {
-    #         'article_id': article.id,
-    #         'title': article.title,
-    #         'abstract': article.abstract
-    #     }
-    #
-    #     entry_predictions = []
-    #     for keyword, keyword_probability in zip(article.ts_keywords.split("\t"), article.ts_keyword_probabilities.split("\t")):
-    #         distance_to_hyperplane = scipy.special.logit(float(keyword_probability))
-    #
-    #         entry_predictions.append(
-    #             {
-    #                 'keyword': keyword,
-    #                 'probability': keyword_probability,
-    #                 'distance_to_hyperplane': distance_to_hyperplane
-    #             }
-    #         )
-    #
-    #     entry['keywords'] = entry_predictions
-    #     all_inference_articles.append(entry)
-    #
-    # # TODO: make active learning strategy part of POST-request
-    # # active learning component for sorting
-    # import cancer.active_learning.selection_strategies
-    # sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
-    #     all_inference_articles
-    # )
-    #
-    # return JsonResponse(
-    #     {
-    #         'article_predictions': sorted_articles
-    #     }
-    # )
+
+    return JsonResponse(
+        {
+            'article_predictions': sorted_articles
+        }
+    )
 
 
 def update_model_with_feedback():
