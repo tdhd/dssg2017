@@ -18,7 +18,7 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
     <script>
-        function send_feedback() {
+        function send_feedback(article_id, vote, keyword, annotator_name) {
             // Sending and receiving data in JSON format using POST mothod
             //
             var xhr = new XMLHttpRequest();
@@ -33,13 +33,19 @@
             };
             var data = JSON.stringify(
                 {
-                    "article_id": 1,
-                    "vote": "OK",
-                    "keyword": "feedback_test",
-                    "annotator_name": "hello test name"
+                    "article_id": article_id,
+                    "vote": vote,
+                    "keyword": keyword,
+                    "annotator_name": annotator_name
                 }
             );
             xhr.send(data);
+        }
+
+        function remove_keyword(article_id, keyword, annotator_name, element_id) {
+			console.log(element_id);
+			send_feedback(article_id, 'NOT OK', keyword, annotator_name)
+			document.getElementById(element_id).style.visibility='hidden';
         }
     </script>
   </head>
@@ -61,7 +67,8 @@
 			<p>
 				Here you can upload training and test RIS files.
 			</p>
-            <p onclick="send_feedback()">FEEDBACK.</p>
+            <p onclick="send_feedback(2, 'OK', 'ok-kw', 'tester')">FEEDBACK.</p>
+			<p onclick="send_feedback(2, 'NOT-OK', 'ok-kw', 'tester')">FEEDBACK neg.</p>
 			<dl>
 				<dt>
 					Training RIS files
@@ -118,7 +125,7 @@
 						<thead>
 							<tr>
 								<th>
-									#
+									Article ID
 								</th>
 								<th>
 									Paper Title
@@ -135,7 +142,10 @@
                   <td>{{ result.title }}</td>
                   <td>
                     {% for label, proba in result.labels %}
-                      <b>{{ label }}</b>:<i>{{ proba }}%</i><br>
+                      <div class="glyphicon glyphicon-remove" id="{{ label }}-{{ result.index }}"
+						   onclick="remove_keyword({{ result.index }}, '{{ label }}', 'tester', '{{ label }}-{{ result.index }}')">
+						  <b>{{ label }}</b>:<i>{{ proba }}%</i><br>
+					  </div>
                     {% endfor %}
                   </td>
                 </tr>

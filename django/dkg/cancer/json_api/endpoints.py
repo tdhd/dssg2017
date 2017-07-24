@@ -28,6 +28,9 @@ def train(request):
     :param request: HTTP-request carrying all RIS article information.
     :return: http-status-code 200 in case of success.
     """
+
+    # TODO: make label pruning percentage part of request
+
     request_body = json.loads(request.body)
 
     # add 1.0 as keyword_probabilities
@@ -164,32 +167,24 @@ def feedback(request):
     """
     should_retrain = False
     if should_retrain:
-        # TODO: since there are all keywords stored per default
-        # TODO: how to find a good strategy for label selection going from inf->train? (thresholding?)
         update_model_with_feedback()
 
     request_body = json.loads(request.body)
 
-    # TODO: duplicate keywords possible
+    persistence = cancer.persistence.models.PandasPersistence(
+        django.conf.settings.INFERENCE_ARTICLES_PATH
+    )
+    inference_articles = persistence.load_data()
+
+    article = inference_articles.ix[request_body['article_id']]
 
     if request_body['vote'] == 'OK':
-        article = RISArticle.objects.get(id=request_body['article_id'])
-        print article
-        keyword = RISArticleKeyword(
-            ris_article=article,
-            keyword=request_body['keyword'],
-            keyword_probability=1.0,
-            annotator_name=request_body['annotator_name']
-        )
-        keyword.save()
+        # add feedback keyword to article keywords
+        article.keywords = article.keywords + [(request_body['keyword'], 1.0, request_body['annotator_name'])]
+        persistence.update(inference_articles)
     else:
-        article = RISArticle.objects.get(id=request_body['article_id'])
-        keyword = RISArticleKeyword.objects.filter(
-            ris_article=article,
-            keyword=request_body['keyword'],
-            keyword_probability=1.0,
-            annotator_name=request_body['annotator_name']
-        )
-        keyword.delete()
+        # remove keyword
+        article.keywords = [kw for kw in article.keywords if kw[0] != request_body['keyword']]
+        persistence.update(inference_articles)
 
     return HttpResponse(status=200)
