@@ -1,6 +1,5 @@
 import json # need double quotes in json POST bodies
 from django.http import JsonResponse, HttpResponse
-from cancer.models import RISArticle, RISArticleKeyword, all_articles_by, insert_with_keywords
 import cancer.model_api.model
 import django.conf
 import cancer.persistence.models
@@ -145,10 +144,25 @@ def update_model_with_feedback():
     """
     moves inference documents with feedback to train corpus and updates the model including that data.
     """
-    # TODO: move data from INFERENCE to TRAIN
+    import pandas as pd
+    train_persistence = cancer.persistence.models.PandasPersistence(
+        django.conf.settings.TRAIN_ARTICLES_PATH
+    )
+    train = train_persistence.load_data()
+    inference = cancer.persistence.models.PandasPersistence(
+        django.conf.settings.INFERENCE_ARTICLES_PATH
+    ).load_data()
 
-    # rerun model selection and persist
-    cancer.model_api.model.update_model()
+    merged = pd.concat((train, inference))
+
+    train_persistence.update(merged)
+
+    # retrain model and save to disk
+    cancer.model_api.model.train_model(
+        merged,
+        django.conf.settings.MODEL_PATH,
+        django.conf.settings.LABEL_CODES_PATH
+    )
 
 
 def feedback(request):
@@ -165,7 +179,7 @@ def feedback(request):
 
     depending on 'vote' the keyword is either added or removed from the articles keywords.
     """
-    should_retrain = False
+    should_retrain = True
     if should_retrain:
         update_model_with_feedback()
 

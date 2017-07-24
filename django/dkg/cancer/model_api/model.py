@@ -1,7 +1,6 @@
 import sklearn.feature_extraction
 import sklearn.preprocessing
 import scipy.sparse
-from cancer.models import all_articles_by
 import cancer.ovr
 import cancer.models
 from sklearn.externals import joblib
