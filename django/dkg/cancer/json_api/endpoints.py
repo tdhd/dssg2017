@@ -179,6 +179,7 @@ def feedback(request):
 
     depending on 'vote' the keyword is either added or removed from the articles keywords.
     """
+    # TODO: keep track of number of feedbacks (e.g. in tmp file) and update model iff n > T.
     should_retrain = True
     if should_retrain:
         update_model_with_feedback()
