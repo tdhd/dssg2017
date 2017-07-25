@@ -179,9 +179,30 @@ def feedback(request):
 
     depending on 'vote' the keyword is either added or removed from the articles keywords.
     """
-    # TODO: keep track of number of feedbacks (e.g. in tmp file) and update model iff n > T.
-    should_retrain = True
+    def update_feedback_count():
+        import os.path
+        if os.path.isfile(django.conf.settings.FEEDBACK_COUNTER_PATH):
+            with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'r') as f:
+                feedback_count = int(f.readline())
+            with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
+                f.write(str(feedback_count + 1))
+        else:
+            with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
+                f.write(str(1))
+
+    def n_feedbacks_outstanding():
+        with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'r') as f:
+            return int(f.readline())
+
+    def reset_feedback_count():
+        with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
+            pass
+
+    update_feedback_count()
+
+    should_retrain = n_feedbacks_outstanding() > 10
     if should_retrain:
+        reset_feedback_count()
         update_model_with_feedback()
 
     request_body = json.loads(request.body)
@@ -196,10 +217,10 @@ def feedback(request):
     if request_body['vote'] == 'OK':
         # add feedback keyword to article keywords
         article.keywords = article.keywords + [(request_body['keyword'], 1.0, request_body['annotator_name'])]
-        persistence.update(inference_articles)
     else:
         # remove keyword
         article.keywords = [kw for kw in article.keywords if kw[0] != request_body['keyword']]
-        persistence.update(inference_articles)
+
+    persistence.update(inference_articles)
 
     return HttpResponse(status=200)

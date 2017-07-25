@@ -130,3 +130,6 @@ INFERENCE_ARTICLES_PATH = '/tmp/inference.pkl'
 
 # only show labels with a probability >= than this value
 INFERENCE_LABEL_THRESHOLD = 0.5
+
+# file to store number of feedbacks to inference articles into
+FEEDBACK_COUNTER_PATH = '/tmp/feedback_count'
