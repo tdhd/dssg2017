@@ -142,6 +142,7 @@ def index(request):
             entry = {
                 'index': article['article_id'],
                 'title': article['title'],
+                'abstract': article['abstract'],
                 'labels': [
                     (kw['keyword'], '{0:.2f}'.format(100*float(kw['probability']))) for kw in article['keywords']
                 ]
