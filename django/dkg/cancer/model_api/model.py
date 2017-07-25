@@ -45,29 +45,23 @@ def encode_labels_of(articles_with_keywords_and_probas):
         """
         removes keywords that occur too infrequently.
 
-        :param keywords: pandas.Serioes of lists with article keywords.
+        :param keywords: pandas.Series of lists with article keywords.
         :param p: cumsum relative keyword occurrence cutoff.
         :return:
         """
         import itertools
         import pandas as pd
-        import numpy as np
 
         kws = pd.DataFrame({'kw': list(itertools.chain(*keywords))})
         print 'kws head', kws.head()
-
-        kws_r = 1.0*kws.groupby('kw').agg({'kw': np.size}).sort_values('kw', ascending=False)/kws.shape[0]
-        print('relative kw frequencies')
-        print(kws_r.head(15))
-        cutoff = np.argmin(np.abs(kws_r.cumsum() - p).values) + 1
-        print('label cutoff at {}/{}'.format(cutoff, kws_r.shape[0]))
-
-        print('all considered keywords')
-        valid_kws = list(kws_r[:cutoff].index)
-        print('valid kws', valid_kws)
-
-        keywords = keywords.apply(lambda kws: [kw for kw in kws if kw in valid_kws])
-        return keywords
+        csum_value_counts = kws.kw.value_counts(normalize=True).cumsum()
+        cutoff = (csum_value_counts - p).abs().argmin()
+        print csum_value_counts, cutoff
+        print csum_value_counts.loc[:cutoff]
+        valid_kws = list(csum_value_counts.loc[:cutoff].index.values)
+        print valid_kws
+        pruned_keywords = keywords.apply(lambda kws: [kw for kw in kws if kw in valid_kws])
+        return pruned_keywords
 
     # all keywords for each article, except for quelle and date keywords
     keywords = preprocess_keywords(articles_with_keywords_and_probas.keywords)
