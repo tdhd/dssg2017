@@ -119,3 +119,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# DKG specific settings
+
+MODEL_PATH = '/tmp/model.pkl'
+LABEL_CODES_PATH = '/tmp/label_codes.pkl'
+
+TRAIN_ARTICLES_PATH = '/tmp/train.pkl'
+INFERENCE_ARTICLES_PATH = '/tmp/inference.pkl'
+
+# only show labels with a probability >= than this value
+INFERENCE_LABEL_THRESHOLD = 0.5
+
+# file to store number of feedbacks to inference articles into
+FEEDBACK_COUNTER_PATH = '/tmp/feedback_count'
