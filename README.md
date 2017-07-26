@@ -13,7 +13,7 @@ that includes features like:
 
 ## Webservice
 
-We've built a [webservice](webservice) that allows the DKG to interact with our model via RIS file uploads.
+We've built a django [webservice](django) that allows the DKG to interact with our model via RIS file uploads.
 
 The service has the following features at the moment:
 
