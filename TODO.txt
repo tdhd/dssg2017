@@ -5,6 +5,4 @@
 - 4 augen prinzip GUI
 - label imbalance / thresholding 
 - label imbalance / resampling / reweight
-- download RIS
-- pandas -> RIS
 - active learning offline evaluierung
