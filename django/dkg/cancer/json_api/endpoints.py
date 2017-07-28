@@ -108,7 +108,8 @@ def inference(request):
         ]
 
     # update storage with inferred keywords
-    persistence.update(articles)
+    # FIXME: disabled, only receive keyword predictions from both model and human annotator
+    # persistence.update(articles)
 
     # template rendering
     all_inference_articles = []
@@ -167,46 +168,77 @@ def update_model_with_feedback():
     )
 
 
-def feedback(request):
+# def feedback(request):
+#     """
+#     Receives a POST-request with a single document-label feedback pair:
+#     {
+#         'article_id': 123,
+#         'keyword': '4-harn,pall',
+#         'vote': 'OK',
+#         'annotator_name': 'annotator user name'
+#     }
+#
+#     'vote' is in the set('OK', 'NOT OK').
+#
+#     depending on 'vote' the keyword is either added or removed from the articles keywords.
+#     """
+#     def update_feedback_count():
+#         import os.path
+#         if os.path.isfile(django.conf.settings.FEEDBACK_COUNTER_PATH):
+#             with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'r') as f:
+#                 feedback_count = int(f.readline())
+#             with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
+#                 f.write(str(feedback_count + 1))
+#         else:
+#             with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
+#                 f.write(str(1))
+#
+#     def n_feedbacks_outstanding():
+#         with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'r') as f:
+#             return int(f.readline())
+#
+#     def reset_feedback_count():
+#         with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
+#             pass
+#
+#     update_feedback_count()
+#
+#     should_retrain = n_feedbacks_outstanding() > 10
+#     if should_retrain:
+#         reset_feedback_count()
+#         update_model_with_feedback()
+#
+#     request_body = json.loads(request.body)
+#
+#     persistence = cancer.persistence.models.PandasPersistence(
+#         django.conf.settings.INFERENCE_ARTICLES_PATH
+#     )
+#     inference_articles = persistence.load_data()
+#
+#     article = inference_articles.ix[np.int64(request_body['article_id'])]
+#
+#     if request_body['vote'] == 'OK':
+#         # add feedback keyword to article keywords
+#         article.KW = article.KW + [(request_body['keyword'], 1.0, request_body['annotator_name'])]
+#     else:
+#         # remove keyword
+#         article.KW = [kw for kw in article.KW if kw[0] != request_body['keyword']]
+#
+#     persistence.update(inference_articles)
+#
+#     return HttpResponse(status=200)
+
+
+def feedback_batch(request):
     """
-    Receives a POST-request with a single document-label feedback pair:
+    Receives a POST-request with all keywords for a single article:
     {
         'article_id': 123,
-        'keyword': '4-harn,pall',
-        'vote': 'OK',
+        'keywords': ['4-harn,pall', '1-med,car'],
         'annotator_name': 'annotator user name'
     }
-
-    'vote' is in the set('OK', 'NOT OK').
-
-    depending on 'vote' the keyword is either added or removed from the articles keywords.
     """
-    def update_feedback_count():
-        import os.path
-        if os.path.isfile(django.conf.settings.FEEDBACK_COUNTER_PATH):
-            with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'r') as f:
-                feedback_count = int(f.readline())
-            with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
-                f.write(str(feedback_count + 1))
-        else:
-            with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
-                f.write(str(1))
-
-    def n_feedbacks_outstanding():
-        with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'r') as f:
-            return int(f.readline())
-
-    def reset_feedback_count():
-        with open(django.conf.settings.FEEDBACK_COUNTER_PATH, 'w+') as f:
-            pass
-
-    update_feedback_count()
-
-    should_retrain = n_feedbacks_outstanding() > 10
-    if should_retrain:
-        reset_feedback_count()
-        update_model_with_feedback()
-
+    # TODO: training either here or additional endpoint where we can trigger re-training with training and manually labelled data.
     request_body = json.loads(request.body)
 
     persistence = cancer.persistence.models.PandasPersistence(
@@ -214,14 +246,9 @@ def feedback(request):
     )
     inference_articles = persistence.load_data()
 
-    article = inference_articles.ix[request_body['article_id']]
-
-    if request_body['vote'] == 'OK':
-        # add feedback keyword to article keywords
-        article.KW = article.KW + [(request_body['keyword'], 1.0, request_body['annotator_name'])]
-    else:
-        # remove keyword
-        article.KW = [kw for kw in article.KW if kw[0] != request_body['keyword']]
+    article = inference_articles.ix[np.int64(request_body['article_id'])]
+    # replace all of the previous keywords
+    article['KW'] = [(keyword, 1.0, request_body['annotator_name']) for keyword in request_body['keywords']]
 
     persistence.update(inference_articles)
 
