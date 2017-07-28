@@ -43,10 +43,17 @@ def write_article(article):
             we'd need annotator/score specific RIS tags
     """
     ris = []
-    for k,v in article.iteritems():
+    for k, v in article.iteritems():
         if k == 'KW':
             for kw in v:
                 ris.append("KW  - " + kw[0])
+        elif k == 'A1':  # primary authors
+            for vv in v:
+                ris.append("A1  - " + vv)
+        elif k == 'A2':  # secondary authors
+            for vv in v:
+                ris.append("A2  - " + vv)
+
         else:
             ris.append(str(k) + "  - " + str(v))
     return "\n".join(ris)
