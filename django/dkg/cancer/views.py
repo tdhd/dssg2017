@@ -59,31 +59,45 @@ def ui_ris_upload_adapter(df, article_set):
         'body': 'json encoded data...'
     }
     """
-
     def concat_list_(values):
         if type(values) is list:
             return ','.join(values).decode('ascii', 'ignore')
         else:
             return ''
 
+    def fillna_list(values):
+        if type(values) is list:
+            return values
+        else:
+            return []
+
     import json
 
     articles = []
 
-    # title
-    df['T1'] = df.T1.map(concat_list_)
-    # abstract
-    df['N2'] = df.N2.map(concat_list_)
+    # how to find columns that have more than either 0 or 1 value in them:
+    # In[14]: def lenlist(values):
+    #     ...:     if type(values) == list:
+    #     ...:         return len(values)
+    #     ...:     else:
+    #     ...:         return 0
+    # lens = {col: df[col].map(lenlist).unique() for col in df.columns}
+
+    one_to_n_columns = [
+        'A1',  # primary author
+        'A2',  # secondary author
+        'KW'   # keywords
+    ]
+
+    # list -> string for all columns except for primary/secondary authors and keywords
+    for col in df.columns:
+        if col not in one_to_n_columns:
+            df[col] = df[col].map(concat_list_)
+        else:
+            df[col] = df[col].map(fillna_list)
 
     for _, row in df.iterrows():
-        entry = {
-            'title': row.T1,
-            'abstract': row.N2
-        }
-
-        if article_set == 'TRAIN':
-            entry['keywords'] = row.KW
-
+        entry = row.to_dict()
         articles.append(entry)
 
     # quick hack to emulate django request
