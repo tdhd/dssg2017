@@ -5,6 +5,7 @@ import cancer.ovr
 import cancer.models
 from sklearn.externals import joblib
 import cPickle
+import django.conf
 
 
 def encode_features_of(articles_with_keywords_and_probas):
@@ -15,10 +16,16 @@ def encode_features_of(articles_with_keywords_and_probas):
     :return: sparse design matrix.
     """
     abstracts = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**15)
-    X_abstracts = abstracts.fit_transform(articles_with_keywords_and_probas.abstract)
+    X_abstracts = abstracts.fit_transform(articles_with_keywords_and_probas.N2)
 
     titles = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_titles = titles.fit_transform(articles_with_keywords_and_probas.title)
+    X_titles = titles.fit_transform(articles_with_keywords_and_probas.T1)
+
+    # JA = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    # X_JA = JA.fit_transform(articles_with_keywords_and_probas.JA)
+    #
+    # JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    # X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
 
     X = scipy.sparse.hstack((X_titles, X_abstracts))
     return X
@@ -64,9 +71,12 @@ def encode_labels_of(articles_with_keywords_and_probas):
         return pruned_keywords
 
     # all keywords for each article, except for quelle and date keywords
-    keywords = preprocess_keywords(articles_with_keywords_and_probas.keywords)
+    keywords = preprocess_keywords(articles_with_keywords_and_probas['KW'])
     # prune infrequent keywords
-    pruned_keywords = prune_keywords(keywords, 0.3)
+    pruned_keywords = prune_keywords(
+        keywords,
+        django.conf.settings.LABEL_PRUNING_VALUE_COUNTS_THRESHOLD
+    )
 
     mlb = sklearn.preprocessing.MultiLabelBinarizer(sparse_output=True)
     Y = mlb.fit_transform(pruned_keywords)

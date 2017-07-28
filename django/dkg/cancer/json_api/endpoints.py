@@ -13,9 +13,10 @@ def train(request):
         {
           'articles': [
             {
-              'title': 'carc',
-              'abstract': '...',
-              'keywords': ['a', 'b', ...]
+              'T1': 'carc',
+              'N2': '...',
+              'KW': ['a', 'b', ...],
+              ... # more RIS keys https://en.wikipedia.org/wiki/RIS_(file_format)#Tags
             },
             ...
           ]
@@ -34,11 +35,11 @@ def train(request):
 
     # add 1.0 as keyword_probabilities
     for article in request_body['articles']:
-        article_keywords = article['keywords']
-        del article['keywords']
+        article_keywords = article['KW']
+        del article['KW']
         # keyword, proba, annotator
         kws = [(kw, 1.0, 'TRAIN') for kw in article_keywords]
-        article['keywords'] = kws
+        article['KW'] = kws
 
     persistence = cancer.persistence.models.PandasPersistence(
         django.conf.settings.TRAIN_ARTICLES_PATH
@@ -62,8 +63,9 @@ def inference(request):
         {
           'articles': [
             {
-              'title': 'carc',
-              'abstract': '...',
+              'T1': 'carc',
+              'N2': '...',
+              ... # more key value pairs as in https://en.wikipedia.org/wiki/RIS_(file_format)#Tags
             },
             ...
           ]
@@ -84,7 +86,7 @@ def inference(request):
         django.conf.settings.INFERENCE_ARTICLES_PATH
     )
     for article in request_body['articles']:
-        article['keywords'] = []
+        article['KW'] = []
     persistence.save_batch(request_body['articles'])
 
     articles = persistence.load_data()
@@ -100,7 +102,7 @@ def inference(request):
     for index in range(articles.shape[0]):
         article = articles.ix[index]
         idcs = np.where(label_probas[index, :] >= django.conf.settings.INFERENCE_LABEL_THRESHOLD)
-        article['keywords'] = [
+        article['KW'] = [
             (name, proba, 'INFERENCE')
             for name, proba in zip(label_names[idcs], label_probas[index, idcs][0])
         ]
@@ -114,14 +116,14 @@ def inference(request):
 
         entry = {
             'article_id': index,
-            'title': article.title,
-            'abstract': article.abstract,
+            'title': article.T1,
+            'abstract': article.N2,
             'keywords': [
                 {
                     'keyword': keyword,
                     'probability': proba,
                     'distance_to_hyperplane': scipy.special.logit(float(proba))
-                } for keyword, proba, _ in article.keywords
+                } for keyword, proba, _ in article.KW
             ]
         }
         all_inference_articles.append(entry)
@@ -216,10 +218,10 @@ def feedback(request):
 
     if request_body['vote'] == 'OK':
         # add feedback keyword to article keywords
-        article.keywords = article.keywords + [(request_body['keyword'], 1.0, request_body['annotator_name'])]
+        article.KW = article.KW + [(request_body['keyword'], 1.0, request_body['annotator_name'])]
     else:
         # remove keyword
-        article.keywords = [kw for kw in article.keywords if kw[0] != request_body['keyword']]
+        article.KW = [kw for kw in article.KW if kw[0] != request_body['keyword']]
 
     persistence.update(inference_articles)
 
