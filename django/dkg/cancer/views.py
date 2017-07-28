@@ -1,30 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.shortcuts import render
-
-from ris import read_ris_lines
-
-from ovr import labels_of, features_of, classify_cancer, clean_kws
-
 import json
 
+import cancer.persistence.models
+import django.conf
+from django.http import HttpResponse
+from django.shortcuts import render
 
-def KW_stats_from(df):
-    import pandas as pd
-    import numpy as np
-    df['split_KW'] = df.KW.map(clean_kws)
-    import itertools
-    kw = pd.DataFrame({'kw': list(itertools.chain(*df['split_KW']))})
-    kw['kw'] = kw['kw'].map(lambda k: k.lower())
-    print(kw)
-    agg = kw.groupby('kw').size().reset_index().sort_values(0, ascending=False)
-    agg['n'] = agg[0]
-    del agg[0]
-    agg['np'] = agg['n']/agg['n'].sum()
-    agg['csum'] = np.cumsum(agg['np'])
-    print(agg.head(150))
-    print('{} distinct labels'.format(agg.shape[0]))
+from ris import read_ris_lines, write_ris_lines
 
 
 def df_from(ris_contents):
@@ -156,3 +140,29 @@ def index(request):
     }
 
     return render(request, 'cancer/bs.html', context)
+
+
+def download_test_ris(request):
+    """
+    loads inference pandas dataframe pickle, converts to RIS and sends RIS file contents to client.
+    """
+    persistence = cancer.persistence.models.PandasPersistence(
+        django.conf.settings.INFERENCE_ARTICLES_PATH
+    )
+    articles = persistence.load_data()
+
+    write_ris_lines(
+        django.conf.settings.INFERENCE_ARTICLES_RIS_PATH,
+        articles
+    )
+
+    with open(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH, 'r') as f:
+        contents = f.read()
+    response = HttpResponse(
+        contents, content_type='application/force-download'
+    )
+    # response['X-Sendfile'] = smart_str(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH)
+    response['Content-Disposition'] = 'attachment; filename=inference.ris'
+    # It's usually a good idea to set the 'Content-Length' header too.
+    # You can also set any other required headers: Cache-Control, etc.
+    return response
