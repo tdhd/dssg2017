@@ -1,5 +1,7 @@
 - Model Selection
-- add Author / Verlag feature
+- more features:
+    - add Author / Verlag feature
+    - Journal (JA)
 - 4 augen prinzip GUI
 - label imbalance / thresholding 
 - label imbalance / resampling / reweight
