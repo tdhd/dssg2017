@@ -1,16 +1,15 @@
+import warnings,json,gzip,re
+import pandas as pd
+import numpy as np
+from time import time
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
-from sklearn.svm import SVC
-from sklearn.linear_model import SGDClassifier, LogisticRegression
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import HashingVectorizer, CountVectorizer
-import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
 from scipy.sparse import hstack
-import warnings,json,gzip,re
-from time import time
-from sklearn.model_selection import GridSearchCV
-import numpy as np
 
 # Utility function to report best scores
 def report(results, n_top=3):
@@ -116,27 +115,17 @@ def classify_cancer(X, y, labelNames):
     Runs a multilabel classification experiment
     '''
     # TODO: use pipeline with FeatureUnion
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
     # turn off warnings, usually there are some labels missing in the training set
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-
-        # train a classifier
-        # print("Training classifier")
-        # clf = OneVsRestClassifier(SGDClassifier(loss="log"))
-        # param_grid = {
-        #     "estimator__alpha": [1e-6],
-        #     "estimator__n_iter": [5],
-        #     "estimator__penalty": ['l2']
-        # }
-        # gridsearch = GridSearchCV(estimator=clf,param_grid=param_grid,
-        #     verbose=3,n_jobs=-1,scoring="average_precision")
-        # clf = gridsearch.fit(X_train, y_train)
-        # report(gridsearch.cv_results_)
-
-        # without CV
-        clf = OneVsRestClassifier(SGDClassifier(alpha=1e-6,n_iter=5,loss="log"))
-        clf.fit(X_train, y_train)
+        text_clf = OneVsRestClassifier(SGDClassifier(class_weight='balanced', loss="log", n_iter=10))
+        parameters = {'estimator__alpha': (10.**np.arange(-7,-2)).tolist()}
+        # perform gridsearch to get the best regularizer
+        gs_clf = GridSearchCV(text_clf, parameters, 'precision_weighted', cv=2, n_jobs=-1,verbose=4)
+        gs_clf.fit(X_train, y_train)
+        report(gs_clf.cv_results_)
+        clf = gs_clf.best_estimator_
 
     # predict test split to evaluate model
     y_predicted = clf.predict(X_test)
