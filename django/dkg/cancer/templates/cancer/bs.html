@@ -50,6 +50,27 @@
             xhr.send(data);
         }
 
+        function send_batch_feedback(article_id, keywords, annotator_name) {
+            var xhr = new XMLHttpRequest();
+            var url = "http://---:---@localhost:8000/cancer/json/feedback_batch";
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    console.log(json);
+                }
+            };
+            var data = JSON.stringify(
+                {
+                    "article_id": article_id,
+                    "keywords": keywords,
+                    "annotator_name": annotator_name
+                }
+            );
+            xhr.send(data);
+        }
+
         function remove_keyword(article_id, keyword, annotator_name, element_id) {
 			console.log(element_id);
 			send_feedback(article_id, 'NOT OK', keyword, annotator_name)
@@ -61,6 +82,11 @@
 			var elem = document.getElementById(element_id);
 			send_feedback(article_id, 'OK', elem.value, annotator_name)
 			elem.reset()
+        }
+
+        function send_textarea_keywords(article_id, textarea_id, annotator_name) {
+            var textarea_keywords = $(textarea_id).val().split("\n")
+            send_batch_feedback(article_id, textarea_keywords, annotator_name)
         }
 
 
@@ -161,7 +187,10 @@
                                 Paper Abstract
                             </th>
                             <th>
-                                Keywords
+                                Keywords model
+                            </th>
+                            <th>
+                                Keywords manual
                             </th>
                             <th>
                                 Feedback
@@ -174,32 +203,46 @@
                             <td>{{ result.index }}</td>
                             <td>{{ result.title }}</td>
                             <td>
-                                <a href="#abstract{{ result.index }}" class="btn btn-info" data-toggle="collapse">Show
+                                <a href="#abstract{{ result.index }}" class="btn btn-primary" data-toggle="collapse">Show
                                     abstract</a>
                                 <div id="abstract{{ result.index }}" class="collapse">{{ result.abstract }}</div>
                             </td>
                             <td>
-                                <ul class="list-group">
-                                    {% for label, proba in result.labels %}
-                                    <li id="{{ label }}-{{ result.index }}"
-                                        class="list-group-item justify-content-between">
-                                        {{ label }}
-                                        <span class="badge badge-default badge-pill">{{ proba }}</span>
-                                        <span class="glyphicon glyphicon-remove"
-                                              onclick="remove_keyword({{ result.index }}, '{{ label }}', 'tester', '{{ label }}-{{ result.index }}')"></span>
-                                    </li>
-                                    {% endfor %}
-                                </ul>
+                                <a href="#model-keywords-{{ result.index }}" class="btn btn-primary" data-toggle="collapse">Show
+                                    predictions</a>
+                                <div id="model-keywords-{{ result.index }}" class="collapse">
+                                    <ul class="list-group" id="ul-{{ result.index }}">
+                                        {% for label, proba in result.labels %}
+                                        <li id="{{ label }}-{{ result.index }}"
+                                            class="list-group-item justify-content-between">
+                                            {{ label }}
+                                            <span class="badge badge-default badge-pill">{{ proba }}</span>
+                                            <!-- this is the single negative-feedback button -->
+                                            <!--<span class="glyphicon glyphicon-remove"-->
+                                                  <!--onclick="remove_keyword({{ result.index }}, '{{ label }}', 'tester', '{{ label }}-{{ result.index }}', 'ul-{{ result.index }}')"></span>-->
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+
                             </td>
                             <td>
-                                <dl>
-                                    <input id="keyword-{{ result.index }}" type="text" class="form-control"
-                                           id="inlineFormInputGroup" placeholder="keyword">
-                                    <button type="button" class="btn btn-success"
-                                            onclick="add_keyword({{ result.index }}, 'tester', 'keyword-{{ result.index }}')">
-                                        Add Keyword
-                                    </button>
-                                </dl>
+                                <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50">
+                                </textarea>
+                                <div class="row">
+                                    <!-- this is the single positive-feedback button -->
+                                    <!--<input id="keyword-{{ result.index }}" type="text" class="form-control"-->
+                                           <!--id="inlineFormInputGroup" placeholder="keyword">-->
+                                    <!--<button type="button" class="btn btn-success"-->
+                                            <!--onclick="add_keyword({{ result.index }}, 'tester', 'keyword-{{ result.index }}')">-->
+                                        <!--Add Keyword-->
+                                    <!--</button>-->
+                                </div>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-success" onclick="send_textarea_keywords('{{ result.index }}', '#final-keywords-{{ result.index }}', 'tester')">
+                                    Send keywords
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
