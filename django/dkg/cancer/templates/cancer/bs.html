@@ -26,6 +26,8 @@
             crossorigin="anonymous"></script>
 
     <script>
+        var labeller_name = 'dkg-test';
+
         function send_feedback(article_id, vote, keyword, annotator_name) {
             // Sending and receiving data in JSON format using POST mothod
             //
@@ -89,6 +91,20 @@
             send_batch_feedback(article_id, textarea_keywords, annotator_name)
         }
 
+        function update_model() {
+            var xhr = new XMLHttpRequest();
+            var url = "http://---:---@localhost:8000/cancer/json/update_model";
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    console.log(json);
+                }
+            };
+            var data = JSON.stringify({});
+            xhr.send(data);
+        }
 
 
 
@@ -149,6 +165,16 @@
             <form action="/cancer/download_test_ris" , method=post enctype=multipart/form-data>
                 <input type=submit name=download value=download>
             </form>
+            <h3>
+                Retrain model
+            </h3>
+            <dl>
+                This step should be executed <b>after all</b> of the test articles have been labelled. Retraining the model
+                may take a while.
+            </dl>
+            <button type="button" class="btn btn-info" onclick="update_model()">
+                Retrain model now!
+            </button>
         </div>
         <div class="col-md-10">
             <h2>
@@ -217,9 +243,6 @@
                                             class="list-group-item justify-content-between">
                                             {{ label }}
                                             <span class="badge badge-default badge-pill">{{ proba }}</span>
-                                            <!-- this is the single negative-feedback button -->
-                                            <!--<span class="glyphicon glyphicon-remove"-->
-                                                  <!--onclick="remove_keyword({{ result.index }}, '{{ label }}', 'tester', '{{ label }}-{{ result.index }}', 'ul-{{ result.index }}')"></span>-->
                                         </li>
                                         {% endfor %}
                                     </ul>
@@ -230,17 +253,10 @@
                                 <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50">
                                 </textarea>
                                 <div class="row">
-                                    <!-- this is the single positive-feedback button -->
-                                    <!--<input id="keyword-{{ result.index }}" type="text" class="form-control"-->
-                                           <!--id="inlineFormInputGroup" placeholder="keyword">-->
-                                    <!--<button type="button" class="btn btn-success"-->
-                                            <!--onclick="add_keyword({{ result.index }}, 'tester', 'keyword-{{ result.index }}')">-->
-                                        <!--Add Keyword-->
-                                    <!--</button>-->
                                 </div>
                             </td>
                             <td>
-                                <button type="button" class="btn btn-success" onclick="send_textarea_keywords('{{ result.index }}', '#final-keywords-{{ result.index }}', 'tester')">
+                                <button type="button" class="btn btn-success" onclick="send_textarea_keywords('{{ result.index }}', '#final-keywords-{{ result.index }}', labeller_name)">
                                     Send keywords
                                 </button>
                             </td>

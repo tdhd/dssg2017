@@ -143,7 +143,7 @@ def inference(request):
     )
 
 
-def update_model_with_feedback():
+def update_model(request):
     """
     moves inference documents with feedback to train corpus and updates the model including that data.
     """
@@ -166,6 +166,8 @@ def update_model_with_feedback():
         django.conf.settings.MODEL_PATH,
         django.conf.settings.LABEL_CODES_PATH
     )
+
+    return HttpResponse(status=200)
 
 
 # def feedback(request):
@@ -238,7 +240,6 @@ def feedback_batch(request):
         'annotator_name': 'annotator user name'
     }
     """
-    # TODO: training either here or additional endpoint where we can trigger re-training with training and manually labelled data.
     request_body = json.loads(request.body)
 
     persistence = cancer.persistence.models.PandasPersistence(
@@ -248,7 +249,7 @@ def feedback_batch(request):
 
     article = inference_articles.ix[np.int64(request_body['article_id'])]
     # replace all of the previous keywords
-    article['KW'] = [(keyword, 1.0, request_body['annotator_name']) for keyword in request_body['keywords']]
+    article['KW'] = [(keyword.strip(), 1.0, request_body['annotator_name']) for keyword in request_body['keywords']]
 
     persistence.update(inference_articles)
 
