@@ -1,8 +1,7 @@
 - Model Selection
-- more features:
-    - add Author / Verlag feature
-    - Journal (JA)
-- 4 augen prinzip GUI
 - label imbalance / thresholding 
 - label imbalance / resampling / reweight
 - active learning offline evaluierung
+- training/test data versioning
+- keep history of training/test data
+

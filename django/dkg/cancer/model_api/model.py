@@ -16,18 +16,24 @@ def encode_features_of(articles_with_keywords_and_probas):
     :return: sparse design matrix.
     """
     abstracts = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**15)
-    X_abstracts = abstracts.fit_transform(articles_with_keywords_and_probas.N2)
+    X_N2 = abstracts.fit_transform(articles_with_keywords_and_probas.N2)
 
     titles = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_titles = titles.fit_transform(articles_with_keywords_and_probas.T1)
+    X_T1 = titles.fit_transform(articles_with_keywords_and_probas.T1)
 
-    # JA = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    # X_JA = JA.fit_transform(articles_with_keywords_and_probas.JA)
-    #
-    # JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    # X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
+    JA = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_JA = JA.fit_transform(articles_with_keywords_and_probas.JA)
 
-    X = scipy.sparse.hstack((X_titles, X_abstracts))
+    JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
+
+    PB = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
+
+    X = scipy.sparse.hstack((X_T1, X_N2, X_JA, X_JF, X_PB))
+
+    print 'encoded features shape {}'.format(X.shape)
+
     return X
 
 
