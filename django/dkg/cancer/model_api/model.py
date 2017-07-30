@@ -35,7 +35,7 @@ def encode_features_of(articles_with_keywords_and_probas):
     # Y1 = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
     # X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
     Y1 = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.PB)
+    X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
 
     X = scipy.sparse.hstack((X_T1, X_N2, X_JA, X_JF, X_PB, X_Y1))
 
