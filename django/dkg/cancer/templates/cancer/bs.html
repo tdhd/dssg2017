@@ -150,18 +150,27 @@
             <h3>
                 Training RIS File
             </h3>
+            <dl>
+                Upload RIS file that contains already annotated articles (with KWs).
+            </dl>
             <form action="/cancer/" , method=post enctype=multipart/form-data>
                 <input type=file name=file> <input type=submit name=train value=train>
             </form>
             <h3>
                 Test RIS File
             </h3>
+            <dl>
+                Upload RIS file that you want to label.
+            </dl>
             <form action="/cancer/" , method=post enctype=multipart/form-data>
                 <input type=file name=file><input type=submit name=test value=test>
             </form>
             <h3>
                 Download reviewed Test RIS File
             </h3>
+            <dl>
+                Downloads the articles in RIS format, which you have just been labelleing.
+            </dl>
             <form action="/cancer/download_test_ris" , method=post enctype=multipart/form-data>
                 <input type=submit name=download value=download>
             </form>
@@ -185,17 +194,24 @@
             </p>
             <dl>
                 <dt>
-                    Output format
+                    How to work with the DKG Tagger:
                 </dt>
                 <dd>
-                    Each article in the test RIS file is presented in one line in the table below.
-                    The articles in the table have the same order as the test RIS file you have uploaded.
-                    The first two columns show the article index, starting from 0, and the article title for reference.
-                    The <b>Keywords</b> column shows the predicted keywords with their respective scores, where 100%
-                    means
-                    that the model is quite sure. The lower that value the less sure the model in that particular
-                    keyword
-                    prediction.
+                    <dl>
+                        Each article in the test RIS file is presented in one line in the table below.
+                        The predicted keywords from the model are found in the column <b>keywords model</b> with their
+                        respective confidences where 100 is most certain and 0 is least certain.
+                    </dl>
+
+                    <dl>
+                        After selecting your own keywords and double-checking with the <b>model keywords</b>,
+                        please add the <b>final annotations of that article in <i>keywords manual</i></b>.
+                        <b>For that enter one keyword per line.</b>
+                    </dl>
+                    After that click <b>send keywords</b> to label that article.
+
+                    Once you are done labelling <b>all</b> of the articles, you can download the labelled RIS file
+                    via the button on the bottom left.
                 </dd>
             </dl>
             <div class="row">
@@ -250,8 +266,7 @@
 
                             </td>
                             <td>
-                                <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50">
-                                </textarea>
+                                <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50"></textarea>
                                 <div class="row">
                                 </div>
                             </td>
