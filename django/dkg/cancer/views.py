@@ -172,11 +172,11 @@ def download_test_ris(request):
 
     with open(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH, 'r') as f:
         contents = f.read()
-    response = HttpResponse(
-        contents, content_type='application/force-download'
-    )
-    # response['X-Sendfile'] = smart_str(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH)
-    response['Content-Disposition'] = 'attachment; filename=inference.ris'
-    # It's usually a good idea to set the 'Content-Length' header too.
-    # You can also set any other required headers: Cache-Control, etc.
-    return response
+        response = HttpResponse(
+            contents, content_type='application/force-download'
+        )
+        # response['X-Sendfile'] = smart_str(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH)
+        response['Content-Disposition'] = 'attachment; filename=inference.ris'
+        # It's usually a good idea to set the 'Content-Length' header too.
+        # You can also set any other required headers: Cache-Control, etc.
+        return response

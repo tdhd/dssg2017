@@ -26,6 +26,8 @@
             crossorigin="anonymous"></script>
 
     <script>
+        var labeller_name = 'dkg-test';
+
         function send_feedback(article_id, vote, keyword, annotator_name) {
             // Sending and receiving data in JSON format using POST mothod
             //
@@ -50,6 +52,27 @@
             xhr.send(data);
         }
 
+        function send_batch_feedback(article_id, keywords, annotator_name) {
+            var xhr = new XMLHttpRequest();
+            var url = "http://---:---@localhost:8000/cancer/json/feedback_batch";
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    console.log(json);
+                }
+            };
+            var data = JSON.stringify(
+                {
+                    "article_id": article_id,
+                    "keywords": keywords,
+                    "annotator_name": annotator_name
+                }
+            );
+            xhr.send(data);
+        }
+
         function remove_keyword(article_id, keyword, annotator_name, element_id) {
 			console.log(element_id);
 			send_feedback(article_id, 'NOT OK', keyword, annotator_name)
@@ -63,6 +86,25 @@
 			elem.reset()
         }
 
+        function send_textarea_keywords(article_id, textarea_id, annotator_name) {
+            var textarea_keywords = $(textarea_id).val().split("\n")
+            send_batch_feedback(article_id, textarea_keywords, annotator_name)
+        }
+
+        function update_model() {
+            var xhr = new XMLHttpRequest();
+            var url = "http://---:---@localhost:8000/cancer/json/update_model";
+            xhr.open("POST", url, true);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    console.log(json);
+                }
+            };
+            var data = JSON.stringify({});
+            xhr.send(data);
+        }
 
 
 
@@ -108,21 +150,40 @@
             <h3>
                 Training RIS File
             </h3>
+            <dl>
+                Upload RIS file that contains already annotated articles (with KWs).
+            </dl>
             <form action="/cancer/" , method=post enctype=multipart/form-data>
                 <input type=file name=file> <input type=submit name=train value=train>
             </form>
             <h3>
                 Test RIS File
             </h3>
+            <dl>
+                Upload RIS file that you want to label.
+            </dl>
             <form action="/cancer/" , method=post enctype=multipart/form-data>
                 <input type=file name=file><input type=submit name=test value=test>
             </form>
             <h3>
                 Download reviewed Test RIS File
             </h3>
+            <dl>
+                Downloads the articles in RIS format, which you have just been labelleing.
+            </dl>
             <form action="/cancer/download_test_ris" , method=post enctype=multipart/form-data>
                 <input type=submit name=download value=download>
             </form>
+            <h3>
+                Retrain model
+            </h3>
+            <dl>
+                This step should be executed <b>after all</b> of the test articles have been labelled. Retraining the model
+                may take a while.
+            </dl>
+            <button type="button" class="btn btn-info" onclick="update_model()">
+                Retrain model now!
+            </button>
         </div>
         <div class="col-md-10">
             <h2>
@@ -133,17 +194,24 @@
             </p>
             <dl>
                 <dt>
-                    Output format
+                    How to work with the DKG Tagger:
                 </dt>
                 <dd>
-                    Each article in the test RIS file is presented in one line in the table below.
-                    The articles in the table have the same order as the test RIS file you have uploaded.
-                    The first two columns show the article index, starting from 0, and the article title for reference.
-                    The <b>Keywords</b> column shows the predicted keywords with their respective scores, where 100%
-                    means
-                    that the model is quite sure. The lower that value the less sure the model in that particular
-                    keyword
-                    prediction.
+                    <dl>
+                        Each article in the test RIS file is presented in one line in the table below.
+                        The predicted keywords from the model are found in the column <b>keywords model</b> with their
+                        respective confidences where 100 is most certain and 0 is least certain.
+                    </dl>
+
+                    <dl>
+                        After selecting your own keywords and double-checking with the <b>model keywords</b>,
+                        please add the <b>final annotations of that article in <i>keywords manual</i></b>.
+                        <b>For that enter one keyword per line.</b>
+                    </dl>
+                    After that click <b>send keywords</b> to label that article.
+
+                    Once you are done labelling <b>all</b> of the articles, you can download the labelled RIS file
+                    via the button on the bottom left.
                 </dd>
             </dl>
             <div class="row">
@@ -161,7 +229,10 @@
                                 Paper Abstract
                             </th>
                             <th>
-                                Keywords
+                                Keywords model
+                            </th>
+                            <th>
+                                Keywords manual
                             </th>
                             <th>
                                 Feedback
@@ -174,32 +245,35 @@
                             <td>{{ result.index }}</td>
                             <td>{{ result.title }}</td>
                             <td>
-                                <a href="#abstract{{ result.index }}" class="btn btn-info" data-toggle="collapse">Show
+                                <a href="#abstract{{ result.index }}" class="btn btn-primary" data-toggle="collapse">Show
                                     abstract</a>
                                 <div id="abstract{{ result.index }}" class="collapse">{{ result.abstract }}</div>
                             </td>
                             <td>
-                                <ul class="list-group">
-                                    {% for label, proba in result.labels %}
-                                    <li id="{{ label }}-{{ result.index }}"
-                                        class="list-group-item justify-content-between">
-                                        {{ label }}
-                                        <span class="badge badge-default badge-pill">{{ proba }}</span>
-                                        <span class="glyphicon glyphicon-remove"
-                                              onclick="remove_keyword({{ result.index }}, '{{ label }}', 'tester', '{{ label }}-{{ result.index }}')"></span>
-                                    </li>
-                                    {% endfor %}
-                                </ul>
+                                <a href="#model-keywords-{{ result.index }}" class="btn btn-primary" data-toggle="collapse">Show
+                                    predictions</a>
+                                <div id="model-keywords-{{ result.index }}" class="collapse">
+                                    <ul class="list-group" id="ul-{{ result.index }}">
+                                        {% for label, proba in result.labels %}
+                                        <li id="{{ label }}-{{ result.index }}"
+                                            class="list-group-item justify-content-between">
+                                            {{ label }}
+                                            <span class="badge badge-default badge-pill">{{ proba }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+
                             </td>
                             <td>
-                                <dl>
-                                    <input id="keyword-{{ result.index }}" type="text" class="form-control"
-                                           id="inlineFormInputGroup" placeholder="keyword">
-                                    <button type="button" class="btn btn-success"
-                                            onclick="add_keyword({{ result.index }}, 'tester', 'keyword-{{ result.index }}')">
-                                        Add Keyword
-                                    </button>
-                                </dl>
+                                <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50"></textarea>
+                                <div class="row">
+                                </div>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-success" onclick="send_textarea_keywords('{{ result.index }}', '#final-keywords-{{ result.index }}', labeller_name)">
+                                    Send keywords
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
