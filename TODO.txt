@@ -4,4 +4,5 @@
 - active learning offline evaluierung
 - training/test data versioning
 - keep history of training/test data
+- use pipelines for training, persist and reuse for tes
 
