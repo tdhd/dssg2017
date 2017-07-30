@@ -27,10 +27,10 @@ def encode_features_of(articles_with_keywords_and_probas):
     JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
     X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
 
-    PB = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
-    X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
-    # PB = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    # PB = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
     # X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
+    PB = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
 
     # Y1 = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
     # X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
