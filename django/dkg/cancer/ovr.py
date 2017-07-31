@@ -188,11 +188,6 @@ def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_
         print('\t(ACTIVE LEARNING) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
         active_learning_curve.append(current_score)
 
-        # reprioritize data
-        dists = abs(logit(clf_current.predict_proba(X_test))).mean(axis=1)
-        # run active learning procedure for training with increasing amounts of labels
-        priorities = dists.argsort()
-
     return active_learning_curve, random_learning_curve, baseline_low, baseline_high
 
 def classify_cancer(X, y, labelNames):

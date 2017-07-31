@@ -81,7 +81,9 @@ def plot_results(fn):
     pylab.plot([0.5,.8],[0.5,.8],'k-')
     for i in range(len(results['percentage_samples'])):
         pylab.plot(ac[:,i],rc[:,i],'o')
-    pylab.legend(results['percentage_samples'])
+    pylab.xlim([.64,.7])
+    pylab.ylim([.64,.7])
+    pylab.legend([0]+results['percentage_samples'])
     pylab.xlabel("Active Learning")
     pylab.ylabel("Random")
     pylab.title("Classifier score as function of n_samples")
