@@ -1,10 +1,10 @@
-import django
+import django, scipy, json
+import scipy as sp
 from sklearn.model_selection import train_test_split
 import cancer.persistence.models
 from cancer.ris import read_ris_lines
 from cancer.model_api.model import encode_features_of, encode_labels_of
 from cancer.ovr import compute_scores, model_selection, compute_active_learning_curve
-import scipy
 
 RIS_FILE = "/Users/felix/Code/Python/dssg2017/DSSG_StudyTagger_TestData/information-fuer-study-tagger.ris"
 
@@ -37,7 +37,7 @@ def load_last_training_data(path=RIS_FILE):
 
     return X, y, label_names
 
-def run_experiment(test_size=0.6, n_reps=5):
+def run_experiment(test_size=0.6, n_reps=5, percentage_samples=[1,2,5,10,15,30,50,100]):
     '''
     Runs a multilabel classification experiment
     '''
@@ -54,9 +54,35 @@ def run_experiment(test_size=0.6, n_reps=5):
     # compute active learning curves
     active_learning_curves, random_learning_curves, baseline_lows, baseline_highs = [],[],[],[]
     for irep in range(n_reps):
-        active_learning_curve, random_learning_curve, baseline_low, baseline_high = compute_active_learning_curve(X_train, y_train, X_test, y_test, X_validation, y_validation, clf)
+        X_train, X_tolabel, y_train, y_tolabel = train_test_split(X, y, test_size=test_size)
+        X_test, X_validation, y_test, y_validation = train_test_split(X_tolabel, y_tolabel, test_size=(1-test_size))
+        active_learning_curve, random_learning_curve, baseline_low, baseline_high = compute_active_learning_curve(X_train, y_train, X_test, y_test, X_validation, y_validation, clf,percentage_samples=percentage_samples)
         active_learning_curves.append(active_learning_curve)
         random_learning_curves.append(random_learning_curve)
         baseline_lows.append(baseline_low)
         baseline_highs.append(baseline_high)
+    results = {
+        'active_learning_curves':active_learning_curves,
+        'random_learning_curves':random_learning_curves,
+        'baseline_lows':baseline_lows,
+        'baseline_highs':baseline_highs,
+        'percentage_samples':percentage_samples
+        }
+    json.dump(results,open("active_learning_curves.json","wt"))
     return active_learning_curves, random_learning_curves, baseline_lows, baseline_highs
+
+def plot_results(fn):
+    import pylab
+    results = json.load(open(fn))
+    ac = sp.vstack(results['active_learning_curves'])
+    rc = sp.vstack(results['random_learning_curves'])
+    pylab.figure(figsize=(10,10))
+    pylab.hold('all')
+    pylab.plot([0.5,.8],[0.5,.8],'k-')
+    for i in range(len(results['percentage_samples'])):
+        pylab.plot(ac[:,i],rc[:,i],'o')
+    pylab.legend(results['percentage_samples'])
+    pylab.xlabel("Active Learning")
+    pylab.ylabel("Random")
+    pylab.title("Classifier score as function of n_samples")
+    pylab.savefig('active_learning_curves.pdf')
