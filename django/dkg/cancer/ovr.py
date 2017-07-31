@@ -150,11 +150,11 @@ def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_
     data, either with random selection or with active learning. The results are
     the increase in scores with the respective sampling policy
     '''
-    clf_trained = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(X_train, y_train)
+    print('Computing active learning curve:')
+    clf = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(X_train, y_train)
     baseline_low = label_ranking_average_precision_score(y_validation.toarray(), clf.predict_proba(X_validation))
     clf_trained = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_test]), vstack([y_train, y_test]))
     baseline_high = label_ranking_average_precision_score(y_validation.toarray(), clf_trained.predict_proba(X_validation))
-    print('Computing active learning curve:')
     print('\tBaseline on test: {}, baseline score on train and test {}'.format(baseline_low, baseline_high))
 
     # score test data for active learning sorting
@@ -188,6 +188,11 @@ def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_
         print('\t(ACTIVE LEARNING) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
         active_learning_curve.append(current_score)
 
+        # reprioritize data
+        dists = abs(logit(clf_current.predict_proba(X_test))).mean(axis=1)
+        # run active learning procedure for training with increasing amounts of labels
+        priorities = dists.argsort()
+
     return active_learning_curve, random_learning_curve, baseline_low, baseline_high
 
 def classify_cancer(X, y, labelNames):
@@ -208,9 +213,6 @@ def classify_cancer(X, y, labelNames):
     metrics = compute_scores(y_test, y_predicted, labelNames)
     for metric in metrics:
         print metric, metrics[metric]
-
-    # compute active learning curves
-    active_learning_curve = compute_active_learning_curve(X_train, y_train, X_test, y_test, clf)
 
     # dump results
     json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
