@@ -137,7 +137,10 @@ INFERENCE_ARTICLES_RIS_PATH = '/tmp/inference.ris'
 INFERENCE_LABEL_THRESHOLD = 0.5
 
 # file to store number of feedbacks to inference articles into
-FEEDBACK_COUNTER_PATH = '/tmp/feedback_count'
+# FEEDBACK_COUNTER_PATH = '/tmp/feedback_count'
+
+# encoder sklearn Pipeline save path
+FEATURE_ENCODER_PATH = '/tmp/feature_encoder_pipeline.pkl'
 
 # label pruning normalized value counts threshold
 LABEL_PRUNING_VALUE_COUNTS_THRESHOLD = 0.66
