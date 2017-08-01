@@ -27,12 +27,13 @@
 
     <script>
         var labeller_name = 'dkg-test';
+        var hostname_with_port = "http://{{ json_api.username }}:{{ json_api.password }}@" + window.location.hostname + ":8000"
 
         function send_feedback(article_id, vote, keyword, annotator_name) {
             // Sending and receiving data in JSON format using POST mothod
             //
             var xhr = new XMLHttpRequest();
-            var url = "http://---:---@localhost:8000/cancer/json/feedback";
+            var url = hostname_with_port + "/cancer/json/feedback";
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-type", "application/json");
             xhr.onreadystatechange = function () {
@@ -54,7 +55,7 @@
 
         function send_batch_feedback(article_id, keywords, annotator_name) {
             var xhr = new XMLHttpRequest();
-            var url = "http://---:---@localhost:8000/cancer/json/feedback_batch";
+            var url = hostname_with_port + "/cancer/json/feedback_batch";
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-type", "application/json");
             xhr.onreadystatechange = function () {
@@ -93,7 +94,7 @@
 
         function update_model() {
             var xhr = new XMLHttpRequest();
-            var url = "http://---:---@localhost:8000/cancer/json/update_model";
+            var url = hostname_with_port + "/cancer/json/update_model";
             xhr.open("POST", url, true);
             xhr.setRequestHeader("Content-type", "application/json");
             xhr.onreadystatechange = function () {

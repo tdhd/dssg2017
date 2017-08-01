@@ -122,6 +122,10 @@ STATIC_URL = '/static/'
 
 # DKG specific settings
 
+# basic auth settings
+USER_NAME = '---'
+PASSWORD = '---'
+
 MODEL_PATH = '/tmp/model.pkl'
 LABEL_CODES_PATH = '/tmp/label_codes.pkl'
 

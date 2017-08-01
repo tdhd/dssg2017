@@ -11,17 +11,22 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
+from settings import USER_NAME, PASSWORD
+
+
 class AuthenticationMiddleware(object):
     def __init__(self, app, username, password):
         self.app = app
         self.username = username
         self.password = password
+
     def __unauthorized(self, start_response):
         start_response('401 Unauthorized', [
             ('Content-type', 'text/plain'),
             ('WWW-Authenticate', 'Basic realm="restricted"')
         ])
         return ['You are unauthorized and forbidden to view this resource.']
+
     def __call__(self, environ, start_response):
         authorization = environ.get('HTTP_AUTHORIZATION', None)
         if not authorization:
@@ -39,9 +44,6 @@ class AuthenticationMiddleware(object):
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dkg.settings")
-
-USER_NAME = '---'
-PASSWORD = '---'
 
 application = get_wsgi_application()
 application = AuthenticationMiddleware(application, USER_NAME, PASSWORD)
