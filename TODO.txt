@@ -4,7 +4,6 @@
 - active learning offline evaluierung
 - training/test data versioning
 - keep history of training/test data
-- use pipelines for training, persist and reuse for test (FeatureUnion with ItemSelector)
 
 - async:
     - websockets for async communication
