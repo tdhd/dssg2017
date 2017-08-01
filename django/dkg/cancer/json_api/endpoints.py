@@ -51,7 +51,8 @@ def train(request):
     cancer.model_api.model.train_model(
         articles_with_keywords_and_probas,
         django.conf.settings.MODEL_PATH,
-        django.conf.settings.LABEL_CODES_PATH
+        django.conf.settings.LABEL_CODES_PATH,
+        django.conf.settings.FEATURE_ENCODER_PATH
     )
 
     return HttpResponse(status=200)
@@ -95,7 +96,8 @@ def inference(request):
     label_probas, labels_binarized, label_names = cancer.model_api.model.inference_with_model(
         articles,
         django.conf.settings.MODEL_PATH,
-        django.conf.settings.LABEL_CODES_PATH
+        django.conf.settings.LABEL_CODES_PATH,
+        django.conf.settings.FEATURE_ENCODER_PATH
     )
 
     # threshold predicted labels
@@ -164,7 +166,8 @@ def update_model(request):
     cancer.model_api.model.train_model(
         merged,
         django.conf.settings.MODEL_PATH,
-        django.conf.settings.LABEL_CODES_PATH
+        django.conf.settings.LABEL_CODES_PATH,
+        django.conf.settings.FEATURE_ENCODER_PATH
     )
 
     return HttpResponse(status=200)

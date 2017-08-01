@@ -1,50 +1,89 @@
+import cPickle
+
+import cancer.models
+import cancer.ovr
+import django.conf
+import django.conf
+import scipy.sparse
 import sklearn.feature_extraction
 import sklearn.preprocessing
-import scipy.sparse
-import cancer.ovr
-import cancer.models
+from cancer.model_api.pipelining import ItemSelector
 from sklearn.externals import joblib
-import cPickle
-import django.conf
+from sklearn.pipeline import Pipeline, FeatureUnion
 
 
-def encode_features_of(articles_with_keywords_and_probas):
+class LabelBinarizerPipelineFriendly(sklearn.preprocessing.LabelBinarizer):
     """
-    returns scipy.sparse matrix from model articles features.
-
-    :param articles_with_keywords_and_probas: pandas.DataFrame.
-    :return: sparse design matrix.
+    quick hack to allow for labelbinarizer in pipeline
+    cf. https://github.com/scikit-learn/scikit-learn/issues/3112
     """
-    abstracts = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**15)
-    X_N2 = abstracts.fit_transform(articles_with_keywords_and_probas.N2)
 
-    titles = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_T1 = titles.fit_transform(articles_with_keywords_and_probas.T1)
+    def fit(self, X, y=None):
+        """this would allow us to fit the model based on the X input."""
+        super(LabelBinarizerPipelineFriendly, self).fit(X)
 
-    JA = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_JA = JA.fit_transform(articles_with_keywords_and_probas.JA)
+    def transform(self, X, y=None):
+        return super(LabelBinarizerPipelineFriendly, self).transform(X)
 
-    JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
+    def fit_transform(self, X, y=None):
+        return super(LabelBinarizerPipelineFriendly, self).fit(X).transform(X)
 
-    # fixme: label binarizer encoding depends on the data, should save the whole pipeline object and reuse it from
-    # training
 
-    # PB = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
-    # X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
-    PB = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
+def encoder_pipeline_from(articles_with_keywords_and_probas):
+    """
+    from pandas.DataFrame to Pipeline with FeatureUnion.
 
-    # Y1 = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
-    # X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
-    Y1 = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
+    :param articles_with_keywords_and_probas:
+    :return: Pipeline with FeatureUnion to be able to .transform(df) to yield X matrix.
+    """
+    pipeline = Pipeline([
+        ('union', FeatureUnion(
+            transformer_list=[
 
-    X = scipy.sparse.hstack((X_T1, X_N2, X_JA, X_JF, X_PB, X_Y1))
+                ('abstract', Pipeline([
+                    ('selector', ItemSelector(key='N2')),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**12)),
+                ])),
 
-    print 'encoded features shape {}'.format(X.shape)
+                ('title', Pipeline([
+                    ('selector', ItemSelector(key='T1')),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                ])),
 
-    return X
+                ('journal-abbrev', Pipeline([
+                    ('selector', ItemSelector(key='JA')),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                ])),
+
+                ('journal-full', Pipeline([
+                    ('selector', ItemSelector(key='JF')),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                ])),
+
+                ('publisher', Pipeline([
+                    ('selector', ItemSelector(key='PB')),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                ])),
+                ('year', Pipeline([
+                    ('selector', ItemSelector(key='Y1')),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                ])),
+
+                # todo: probably should use pruning of publishers and years, too many distinct values
+                # ('publisher_lb', Pipeline([
+                #     ('selector', ItemSelector(key='PB')),
+                #     ('lb', LabelBinarizerPipelineFriendly(sparse_output=True))
+                # ])),
+                # ('year_lb', Pipeline([
+                #     ('selector', ItemSelector(key='Y1')),
+                #     ('lb', LabelBinarizerPipelineFriendly(sparse_output=True))
+                # ])),
+            ]
+        ))
+    ])
+
+    pipeline.fit(articles_with_keywords_and_probas)
+    return pipeline
 
 
 def encode_labels_of(articles_with_keywords_and_probas):
@@ -100,12 +139,15 @@ def encode_labels_of(articles_with_keywords_and_probas):
     return Y, mlb.classes_
 
 
-def inference_with_model(articles, save_path, Y_classes_save_path):
+def inference_with_model(articles, save_path, Y_classes_save_path, feature_encoder_path):
     """
     runs inference with the existing model on all of the articles flagged with INFERENCE.
     :return:
     """
-    X = encode_features_of(articles)
+    encoder_pipeline = joblib.load(feature_encoder_path)
+    X = encoder_pipeline.transform(articles)
+
+    print X.shape
 
     Y_classes = cPickle.load(open(Y_classes_save_path))
     clf = joblib.load(save_path)
@@ -116,23 +158,22 @@ def inference_with_model(articles, save_path, Y_classes_save_path):
     return probas, binarized, Y_classes
 
 
-def train_model(articles_with_keywords_and_probas, clf_save_path, Y_classes_save_path):
+def train_model(articles_with_keywords_and_probas, clf_save_path, Y_classes_save_path, feature_encoder_path):
     """
     model selection and evaluation with current set of training articles
     :return: None
     """
-    # one row per keyword article group
-    # articles_with_keywords = all_articles_by('TRAIN')
-
-    print articles_with_keywords_and_probas.head()
-
     # encode data
-    X = encode_features_of(articles_with_keywords_and_probas)
+    encoder_pipeline = encoder_pipeline_from(articles_with_keywords_and_probas)
+    X = encoder_pipeline.transform(articles_with_keywords_and_probas)
     Y, Y_classes = encode_labels_of(articles_with_keywords_and_probas)
+
+    print X.shape, Y.shape
 
     # model selection
     clf = cancer.ovr.classify_cancer(X, Y, Y_classes)
 
     # persistence
     joblib.dump(clf, clf_save_path)
+    joblib.dump(encoder_pipeline, feature_encoder_path)
     cPickle.dump(Y_classes, open(Y_classes_save_path, 'w'))
