@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'cancer'
+    'cancer',
+    'channels'
 ]
 
 MIDDLEWARE = [
@@ -137,3 +138,12 @@ FEEDBACK_COUNTER_PATH = '/tmp/feedback_count'
 
 # label pruning normalized value counts threshold
 LABEL_PRUNING_VALUE_COUNTS_THRESHOLD = 0.66
+
+
+# django channels config
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "asgiref.inmemory.ChannelLayer",
+        "ROUTING": "cancer.routing.channel_routing",
+    },
+}
