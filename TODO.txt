@@ -4,6 +4,16 @@
 - active learning offline evaluierung
 - training/test data versioning
 - keep history of training/test data
-- use pipelines for training, persist and reuse for tes
-- javascript localhost:8080 hardcoded should be changed to account for hetzner deployment
+- use pipelines for training, persist and reuse for test (FeatureUnion with ItemSelector)
 
+- javascript localhost:8080 hardcoded should be changed to account for hetzner deployment
+- javascript hardcoded username and password should be changed to dynamic values from settings.py
+
+- async:
+    - websockets for async communication
+    - async model selection and notification
+
+- bootstrap modals for 1 by 1 review process
+- bootstrap tooltips for article abstract feature importances
+- value counts ordered multiselect dropdown for keywords http://davidstutz.github.io/bootstrap-multiselect
+    https://cdnjs.com/libraries/bootstrap-multiselect
