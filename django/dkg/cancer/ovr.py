@@ -5,11 +5,16 @@ from time import time
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.linear_model import SGDClassifier
+from sklearn.linear_model import SGDClassifier, LogisticRegression
 from sklearn.feature_extraction.text import HashingVectorizer, CountVectorizer
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
-from scipy.sparse import hstack
+from sklearn.metrics import label_ranking_average_precision_score
+from scipy.sparse import hstack, vstack
+from cancer.active_learning.selection_strategies import SelectionStrategies
+import django.conf
+from scipy.special import logit
+
 
 # Utility function to report best scores
 def report(results, n_top=3):
@@ -57,7 +62,7 @@ def features_of(data):
     print("Vectorizing titles")
     titles = HashingVectorizer(n_features=2**8).fit_transform(data.T1.map(concat_list_))
     print("Vectorizing authors")
-    authors = HashingVectorizer(n_features=2**8).fit_transform(data.A1.map(concat_list_))
+    authors = HashingVectorizer(n_features=2**5).fit_transform(data.A1.map(concat_list_))
     print("Vectorizing abstracts")
     abstracts = HashingVectorizer(n_features=2**15).fit_transform(data.N2.map(concat_list_))
     X = hstack((dates,titles,authors,abstracts))
@@ -88,10 +93,6 @@ def labels_of(data, label_col, p):
     cutoff = np.argmin(np.abs(kws_r.cumsum() - p).values) + 1
     print('label cutoff at {}/{}'.format(cutoff, kws_r.shape[0]))
 
-    # print('kws head')
-    # valid_kws = kws[:cutoff]
-    # print(valid_kws)
-
     print('all considered keywords')
     valid_kws = list(kws_r[:cutoff].index)
     print(valid_kws)
@@ -109,6 +110,85 @@ def labels_of(data, label_col, p):
     print("Vectorized %d labels in %d dimensions"%(y.shape[-1],y.shape[1]))
     return y, labelVectorizer.classes_
 
+def compute_scores(y_test, y_predicted, labelNames):
+    # the scores we want to compute
+    scorers = [
+        precision_score,
+        recall_score,
+        f1_score
+        ]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        metrics = {
+            s.__name__ : getSortedMetrics(y_test,y_predicted,labelNames,s)
+            for s in scorers
+            }
+    return metrics
+
+def model_selection(X,y):
+    '''
+    Runs model selection, returns fitted classifier
+    '''
+    # turn off warnings, usually there are some labels missing in the training set
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        text_clf = OneVsRestClassifier(SGDClassifier(loss="log", average=True, penalty='l1'))
+        parameters = {'estimator__alpha': (np.logspace(-7,-4,4)).tolist()}
+        # perform gridsearch to get the best regularizer
+        gs_clf = GridSearchCV(text_clf, parameters, cv=2, n_jobs=-1,verbose=4)
+        gs_clf.fit(X, y)
+        report(gs_clf.cv_results_)
+    return gs_clf.best_estimator_
+
+def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_validation, clf,percentage_samples=[1,2,5,10,15,30,50,100]):
+    '''
+    Emulate active learning with annotators:
+    for a given training, test and validation set, get the validation error by
+    training on training data only, then the score when trained on training and
+    test data and then the increasing validation score when adding more labelled
+    data, either with random selection or with active learning. The results are
+    the increase in scores with the respective sampling policy
+    '''
+    print('Computing active learning curve:')
+    clf = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(X_train, y_train)
+    baseline_low = label_ranking_average_precision_score(y_validation.toarray(), clf.predict_proba(X_validation))
+    clf_trained = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_test]), vstack([y_train, y_test]))
+    baseline_high = label_ranking_average_precision_score(y_validation.toarray(), clf_trained.predict_proba(X_validation))
+    print('\tBaseline on test: {}, baseline score on train and test {}'.format(baseline_low, baseline_high))
+
+    # score test data for active learning sorting
+    label_probas = clf.predict_proba(X_test)
+
+    # run a random sampling procedure for training with increasing amounts of labels
+    random_priorities = np.random.permutation(label_probas.shape[0])
+
+    random_learning_curve = []
+    for percentage in percentage_samples:
+        n_samples = int((percentage/100.) * X_test.shape[0])
+        X_labelled = X_test[random_priorities[:n_samples],:]
+        y_labelled = y_test[random_priorities[:n_samples],:]
+        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
+        current_score = label_ranking_average_precision_score(y_validation.toarray(), clf_current.predict_proba(X_validation))
+        print('\t(RANDOM) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
+        random_learning_curve.append(current_score)
+
+    # mean distance to hyperplane
+    dists = abs(logit(label_probas)).mean(axis=1)
+    # run active learning procedure for training with increasing amounts of labels
+    priorities = dists.argsort()
+
+    active_learning_curve = []
+    for percentage in percentage_samples:
+        n_samples = int((percentage/100.) * X_test.shape[0])
+        X_labelled = X_test[priorities[:n_samples],:]
+        y_labelled = y_test[priorities[:n_samples],:]
+        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'),n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
+        current_score = label_ranking_average_precision_score(y_validation.toarray(), clf_current.predict_proba(X_validation))
+        print('\t(ACTIVE LEARNING) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
+        active_learning_curve.append(current_score)
+
+    return active_learning_curve, random_learning_curve, baseline_low, baseline_high
 
 def classify_cancer(X, y, labelNames):
     '''
@@ -116,29 +196,18 @@ def classify_cancer(X, y, labelNames):
     '''
     # TODO: use pipeline with FeatureUnion
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
-    # turn off warnings, usually there are some labels missing in the training set
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        text_clf = OneVsRestClassifier(SGDClassifier(class_weight='balanced', loss="log", n_iter=10))
-        parameters = {'estimator__alpha': (10.**np.arange(-7,-2)).tolist()}
-        # perform gridsearch to get the best regularizer
-        gs_clf = GridSearchCV(text_clf, parameters, 'precision_weighted', cv=2, n_jobs=-1,verbose=4)
-        gs_clf.fit(X_train, y_train)
-        report(gs_clf.cv_results_)
-        clf = gs_clf.best_estimator_
+
+    clf = model_selection(X_train, y_train)
 
     # predict test split to evaluate model
     y_predicted = clf.predict(X_test)
     # compute Scores
     print(y_predicted.shape)
     print(clf.predict_proba(X_test))
-    # the scores we want to compute
-    scorers = [precision_score,recall_score,f1_score]
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        metrics = {s.__name__:getSortedMetrics(y_test,y_predicted,labelNames,s) for s in scorers}
+
+    metrics = compute_scores(y_test, y_predicted, labelNames)
     for metric in metrics:
-        print metric, len(metrics[metric]), metrics[metric]
+        print metric, metrics[metric]
 
     # dump results
     json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
