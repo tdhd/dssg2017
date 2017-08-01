@@ -8,3 +8,13 @@ def ws_message(message):
     message.reply_channel.send({
         "text": message.content['text'],
     })
+
+
+def ws_connect(message):
+    message.reply_channel.send({
+        "text": 'connected',
+    })
+
+
+def ws_disconnect(message):
+    print message.content

@@ -47,12 +47,23 @@ def train(request):
     persistence.save_batch(request_body['articles'])
     articles_with_keywords_and_probas = persistence.load_data()
 
-    # retrain model and save to disk
-    cancer.model_api.model.train_model(
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    # retrain model and save to disc
+    training_future = executor.submit(
+        cancer.model_api.model.train_model,
         articles_with_keywords_and_probas,
         django.conf.settings.MODEL_PATH,
         django.conf.settings.LABEL_CODES_PATH
     )
+
+    def meh(future):
+        print future.result()
+        return 1
+
+    training_future.add_done_callback(meh)
+
+    # TODO: send notification (ws) to client, that model training is done
 
     return HttpResponse(status=200)
 
