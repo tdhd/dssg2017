@@ -6,9 +6,6 @@
 - keep history of training/test data
 - use pipelines for training, persist and reuse for test (FeatureUnion with ItemSelector)
 
-- javascript localhost:8080 hardcoded should be changed to account for hetzner deployment
-- javascript hardcoded username and password should be changed to dynamic values from settings.py
-
 - async:
     - websockets for async communication
     - async model selection and notification

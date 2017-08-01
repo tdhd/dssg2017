@@ -151,6 +151,10 @@ def index(request):
 
     context = {
         'results': results,
+        'json_api': {
+            'username': django.conf.settings.USER_NAME,
+            'password': django.conf.settings.PASSWORD
+        }
     }
 
     return render(request, 'cancer/bs.html', context)
