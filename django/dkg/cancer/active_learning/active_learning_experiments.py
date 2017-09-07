@@ -1,12 +1,16 @@
-import django, scipy, json
+# import django
+import json
 import scipy as sp
+import pandas as pd
+import itertools
 from sklearn.model_selection import train_test_split
 import cancer.persistence.models
 from cancer.ris import read_ris_lines
 from cancer.model_api.model import encode_features_of, encode_labels_of
 from cancer.ovr import compute_scores, model_selection, compute_active_learning_curve
 
-RIS_FILE = "/Users/felix/Code/Python/dssg2017/DSSG_StudyTagger_TestData/information-fuer-study-tagger.ris"
+RIS_FILE = "/Users/felix/Code/Python/dssg2017/DSSG_StudyTagger_TestData_20170731/train_Data_wholeDB_20170731.ris"
+IGNORE_KEYWORDS = "/Users/felix/Code/Python/dssg2017/DSSG_StudyTagger_TestData_20170731/zu_ignorierende_keywords.txt"
 
 def concat_list_(values):
     """
@@ -18,9 +22,9 @@ def concat_list_(values):
     else:
         return ''
 
-def load_last_training_data(path=RIS_FILE):
+def load_last_training_data(path=RIS_FILE, subsample=0.2):
 
-    ris_df = read_ris_lines(open(path).readlines())
+    ris_df = read_ris_lines(open(path).readlines()).sample(frac=subsample)
 
     ris_df['N2'] = ris_df.N2.map(concat_list_)
     ris_df['T1'] = ris_df.T1.map(concat_list_)
@@ -28,6 +32,21 @@ def load_last_training_data(path=RIS_FILE):
     ris_df['JF'] = ris_df.JF.map(concat_list_)
     ris_df['PB'] = ris_df.PB.map(concat_list_)
     ris_df['Y1'] = ris_df.Y1.map(concat_list_)
+    # kws = pd.Series(",".join(itertools.chain(*ris_df.KW)).split(",")).str.strip().value_counts()
+    # rare = kws[kws < 100].index.tolist()
+    rare = []
+    # remove to-be-ignored-keywords
+
+    ignore = [x.strip() for x in open(IGNORE_KEYWORDS).readlines()] + rare
+    print("Removing {} keywords".format(len(ignore)))
+
+    def ignore_words(words, ignorewords):
+        return [w.strip() for w in words if not any([iw in w for iw in ignorewords])]
+
+    ris_df['KW'] = ris_df['KW'].apply(lambda x: ignore_words(x, ignore))
+    ris_df = ris_df[ris_df.KW.apply(lambda x: len(x)>0)]
+
+    print("Extracted {} samples".format(len(ris_df)))
 
     # each keyword to three-tuple for compatability
     ris_df['KW'] = ris_df.KW.map(lambda kws: map(lambda kw: (kw, 1.0, 'test'), kws))
@@ -37,12 +56,12 @@ def load_last_training_data(path=RIS_FILE):
 
     return X, y, label_names
 
-def run_experiment(test_size=0.6, n_reps=5, percentage_samples=[1,2,5,10,15,30,50,100]):
+def run_experiment(test_size=0.8, n_reps=5, percentage_samples=[1,2,5,10,15,30,50,100],subsample=.1):
     '''
     Runs a multilabel classification experiment
     '''
     print("Loading data")
-    X, y, label_names = load_last_training_data()
+    X, y, label_names = load_last_training_data(subsample=subsample)
 
     X_train, X_tolabel, y_train, y_tolabel = train_test_split(X, y, test_size=test_size)
 
@@ -78,11 +97,12 @@ def plot_results(fn):
     rc = sp.vstack(results['random_learning_curves'])
     pylab.figure(figsize=(10,10))
     pylab.hold('all')
+    # pylab.hold(True)
     pylab.plot([0.5,.8],[0.5,.8],'k-')
     for i in range(len(results['percentage_samples'])):
         pylab.plot(ac[:,i],rc[:,i],'o')
-    pylab.xlim([.64,.7])
-    pylab.ylim([.64,.7])
+    pylab.xlim([rc.min()-.05,ac.max()+.05])
+    pylab.ylim([rc.min()-.05,ac.max()+.05])
     pylab.legend([0]+results['percentage_samples'])
     pylab.xlabel("Active Learning")
     pylab.ylabel("Random")

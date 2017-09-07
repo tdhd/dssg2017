@@ -9,7 +9,8 @@ from sklearn.linear_model import SGDClassifier, LogisticRegression
 from sklearn.feature_extraction.text import HashingVectorizer, CountVectorizer
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
-from sklearn.metrics import label_ranking_average_precision_score
+from sklearn.metrics import label_ranking_average_precision_score, make_scorer
+from sklearn.ensemble import BaggingClassifier
 from scipy.sparse import hstack, vstack
 from cancer.active_learning.selection_strategies import SelectionStrategies
 import django.conf
@@ -133,15 +134,16 @@ def model_selection(X,y):
     # turn off warnings, usually there are some labels missing in the training set
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        text_clf = OneVsRestClassifier(SGDClassifier(loss="log", average=True, penalty='l1'))
-        parameters = {'estimator__alpha': (np.logspace(-7,-4,4)).tolist()}
+        base_clf = SGDClassifier(loss="log", average=True, penalty='l1')
+        text_clf = OneVsRestClassifier(base_clf)
+        parameters = {'estimator__alpha': (np.logspace(-7,-5,5)).tolist()}
         # perform gridsearch to get the best regularizer
         gs_clf = GridSearchCV(text_clf, parameters, cv=2, n_jobs=-1,verbose=4)
         gs_clf.fit(X, y)
         report(gs_clf.cv_results_)
     return gs_clf.best_estimator_
 
-def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_validation, clf,percentage_samples=[1,2,5,10,15,30,50,100]):
+def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_validation, clf,percentage_samples=[1,2,5,10,15,30,50,100],method="margin"):
     '''
     Emulate active learning with annotators:
     for a given training, test and validation set, get the validation error by
@@ -151,9 +153,10 @@ def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_
     the increase in scores with the respective sampling policy
     '''
     print('Computing active learning curve:')
-    clf = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(X_train, y_train)
+    alpha = clf.estimator.alpha
+    clf = OneVsRestClassifier(BaggingClassifier(SGDClassifier(loss="log",alpha=alpha, average=True, penalty='l1'), n_jobs=-1,max_samples=.2)).fit(X_train, y_train)
     baseline_low = label_ranking_average_precision_score(y_validation.toarray(), clf.predict_proba(X_validation))
-    clf_trained = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_test]), vstack([y_train, y_test]))
+    clf_trained = OneVsRestClassifier(SGDClassifier(loss="log",alpha=alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_test]), vstack([y_train, y_test]))
     baseline_high = label_ranking_average_precision_score(y_validation.toarray(), clf_trained.predict_proba(X_validation))
     print('\tBaseline on test: {}, baseline score on train and test {}'.format(baseline_low, baseline_high))
 
@@ -168,25 +171,40 @@ def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_
         n_samples = int((percentage/100.) * X_test.shape[0])
         X_labelled = X_test[random_priorities[:n_samples],:]
         y_labelled = y_test[random_priorities[:n_samples],:]
-        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
+        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
         current_score = label_ranking_average_precision_score(y_validation.toarray(), clf_current.predict_proba(X_validation))
         print('\t(RANDOM) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
         random_learning_curve.append(current_score)
 
-    # mean distance to hyperplane
-    dists = abs(logit(label_probas)).mean(axis=1)
-    # run active learning procedure for training with increasing amounts of labels
-    priorities = dists.argsort()
+    if method == 'margin':
+        # mean distance to hyperplane
+        dists = abs(logit(label_probas + 1e-7)).mean(axis=1)
+        # run active learning procedure for training with increasing amounts of labels
+        priorities = dists.argsort()
+    elif method == "qbc":
+        entropies = -(label_probas * np.log(label_probas + 1e-7)).sum(axis=1)
+        priorities = entropies.argsort()[::-1]
 
     active_learning_curve = []
     for percentage in percentage_samples:
         n_samples = int((percentage/100.) * X_test.shape[0])
         X_labelled = X_test[priorities[:n_samples],:]
         y_labelled = y_test[priorities[:n_samples],:]
-        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'),n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
+        # clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'),n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
+        clf_current = OneVsRestClassifier(BaggingClassifier(SGDClassifier(loss="log",alpha=alpha, average=True, penalty='l1'), n_jobs=-1,max_samples=.2)).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
         current_score = label_ranking_average_precision_score(y_validation.toarray(), clf_current.predict_proba(X_validation))
         print('\t(ACTIVE LEARNING) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
         active_learning_curve.append(current_score)
+        # score test data for active learning sorting
+        label_probas = clf_current.predict_proba(X_test)
+        if method == 'margin':
+            # mean distance to hyperplane
+            dists = abs(logit(label_probas)).mean(axis=1)
+            # run active learning procedure for training with increasing amounts of labels
+            priorities = dists.argsort()
+        elif method == "qbc":
+            entropies = -(label_probas * np.log(label_probas + 1e-7)).sum(axis=1)
+            priorities = entropies.argsort()[::-1]
 
     return active_learning_curve, random_learning_curve, baseline_low, baseline_high
 
