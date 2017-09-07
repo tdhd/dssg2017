@@ -16,18 +16,34 @@ def encode_features_of(articles_with_keywords_and_probas):
     :return: sparse design matrix.
     """
     abstracts = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**15)
-    X_abstracts = abstracts.fit_transform(articles_with_keywords_and_probas.N2)
+    X_N2 = abstracts.fit_transform(articles_with_keywords_and_probas.N2)
 
     titles = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    X_titles = titles.fit_transform(articles_with_keywords_and_probas.T1)
+    X_T1 = titles.fit_transform(articles_with_keywords_and_probas.T1)
 
-    # JA = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    # X_JA = JA.fit_transform(articles_with_keywords_and_probas.JA)
-    #
-    # JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
-    # X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
+    JA = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_JA = JA.fit_transform(articles_with_keywords_and_probas.JA)
 
-    X = scipy.sparse.hstack((X_titles, X_abstracts))
+    JF = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_JF = JF.fit_transform(articles_with_keywords_and_probas.JF)
+
+    # fixme: label binarizer encoding depends on the data, should save the whole pipeline object and reuse it from
+    # training
+
+    # PB = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
+    # X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
+    PB = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_PB = PB.fit_transform(articles_with_keywords_and_probas.PB)
+
+    # Y1 = sklearn.preprocessing.LabelBinarizer(sparse_output=True)
+    # X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
+    Y1 = sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8)
+    X_Y1 = Y1.fit_transform(articles_with_keywords_and_probas.Y1)
+
+    X = scipy.sparse.hstack((X_T1, X_N2, X_JA, X_JF, X_PB, X_Y1))
+
+    print 'encoded features shape {}'.format(X.shape)
+
     return X
 
 
