@@ -240,10 +240,7 @@ def feedback_batch(request):
         'annotator_name': 'annotator user name'
     }
     """
-<<<<<<< HEAD
     # TODO: training either here or additional endpoint where we can trigger re-training with training and manually labelled data.
-=======
->>>>>>> 69afa5d47bf3600228e8f773c6807603bfd427f2
     request_body = json.loads(request.body)
 
     persistence = cancer.persistence.models.PandasPersistence(
@@ -253,11 +250,7 @@ def feedback_batch(request):
 
     article = inference_articles.ix[np.int64(request_body['article_id'])]
     # replace all of the previous keywords
-<<<<<<< HEAD
-    article['KW'] = [(keyword, 1.0, request_body['annotator_name']) for keyword in request_body['keywords']]
-=======
     article['KW'] = [(keyword.strip(), 1.0, request_body['annotator_name']) for keyword in request_body['keywords']]
->>>>>>> 69afa5d47bf3600228e8f773c6807603bfd427f2
 
     persistence.update(inference_articles)
 

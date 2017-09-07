@@ -91,23 +91,6 @@
             send_batch_feedback(article_id, textarea_keywords, annotator_name)
         }
 
-<<<<<<< HEAD
-=======
-        function update_model() {
-            var xhr = new XMLHttpRequest();
-            var url = "http://---:---@localhost:8000/cancer/json/update_model";
-            xhr.open("POST", url, true);
-            xhr.setRequestHeader("Content-type", "application/json");
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    var json = JSON.parse(xhr.responseText);
-                    console.log(json);
-                }
-            };
-            var data = JSON.stringify({});
-            xhr.send(data);
-        }
->>>>>>> 69afa5d47bf3600228e8f773c6807603bfd427f2
 
 
 
@@ -262,12 +245,9 @@
                                             class="list-group-item justify-content-between">
                                             {{ label }}
                                             <span class="badge badge-default badge-pill">{{ proba }}</span>
-<<<<<<< HEAD
                                             <!-- this is the single negative-feedback button -->
                                             <!--<span class="glyphicon glyphicon-remove"-->
                                                   <!--onclick="remove_keyword({{ result.index }}, '{{ label }}', 'tester', '{{ label }}-{{ result.index }}', 'ul-{{ result.index }}')"></span>-->
-=======
->>>>>>> 69afa5d47bf3600228e8f773c6807603bfd427f2
                                         </li>
                                         {% endfor %}
                                     </ul>
@@ -275,7 +255,6 @@
 
                             </td>
                             <td>
-<<<<<<< HEAD
                                 <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50">
                                 </textarea>
                                 <div class="row">
@@ -290,14 +269,6 @@
                             </td>
                             <td>
                                 <button type="button" class="btn btn-success" onclick="send_textarea_keywords('{{ result.index }}', '#final-keywords-{{ result.index }}', 'tester')">
-=======
-                                <textarea id="final-keywords-{{ result.index }}" rows="12" cols="50"></textarea>
-                                <div class="row">
-                                </div>
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-success" onclick="send_textarea_keywords('{{ result.index }}', '#final-keywords-{{ result.index }}', labeller_name)">
->>>>>>> 69afa5d47bf3600228e8f773c6807603bfd427f2
                                     Send keywords
                                 </button>
                             </td>
