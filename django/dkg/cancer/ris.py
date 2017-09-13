@@ -2,6 +2,10 @@ import re
 
 RISSTART = '\r'
 
+IGNORE_KW = [x.strip() for x in open("ignore_keywords.txt").readlines()]
+
+def contains_ignore_words(line):
+    return any([iw in line.lower() for iw in IGNORE_KW])
 
 def read_article(lines):
     '''
@@ -12,9 +16,11 @@ def read_article(lines):
         match = re.match("[A-Z0-9]{2}\s+-",line)
         if match:
             key,value = line[:2], line[match.span()[1]:].strip()
-            # keywords to list
-            if key in article: article[key] += [value]
-            else: article[key] = [value]
+            # Filtering out lines that contain to-be-ignored keywords
+            if not contains_ignore_words(line):
+                # keywords to list
+                if key in article: article[key] += [value]
+                else: article[key] = [value]
     return article
 
 
@@ -44,7 +50,11 @@ def write_article(article):
     """
     ris = []
     for k, v in article.iteritems():
-        if k == 'KW':
+        # RIS entry starts with journal tag 
+        # (https://de.wikipedia.org/wiki/RIS_(Dateiformat))
+        if k == 'TY': 
+            ris.insert(0,"TY  - " + v)
+        elif k == 'KW':
             for kw in v:
                 ris.append("KW  - " + kw[0])
         elif k == 'A1':  # primary authors
@@ -56,6 +66,11 @@ def write_article(article):
 
         else:
             ris.append(str(k) + "  - " + str(v))
+    # Double check and insert 'start'/journal tag
+    if "TY" not in ris[0]:
+        ris.insert(0,"TY  - Missing Journal")
+    # add closing tag
+    ris.append("ER  -")
     return "\n".join(ris)
 
 
