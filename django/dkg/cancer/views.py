@@ -165,8 +165,9 @@ def download_test_ris(request):
     """
     loads inference pandas dataframe pickle, converts to RIS and sends RIS file contents to client.
     """
+    current_inference_filename = cancer.persistence.models.latest_persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
     persistence = cancer.persistence.models.PandasPersistence(
-        django.conf.settings.INFERENCE_ARTICLES_PATH
+        current_inference_filename
     )
     articles = persistence.load_data()
 

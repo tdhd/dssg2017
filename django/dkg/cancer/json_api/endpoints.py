@@ -6,6 +6,7 @@ import cancer.persistence.models
 import scipy.special
 import numpy as np
 import cancer.active_learning.selection_strategies
+import os
 
 
 def train(request):
@@ -42,9 +43,11 @@ def train(request):
         kws = [(kw, 1.0, 'TRAIN') for kw in article_keywords]
         article['KW'] = kws
 
+    train_filename = cancer.persistence.models.persistence_filename(django.conf.settings.TRAIN_ARTICLES_PATTERN)
     persistence = cancer.persistence.models.PandasPersistence(
-        django.conf.settings.TRAIN_ARTICLES_PATH
+        train_filename
     )
+
     persistence.save_batch(request_body['articles'])
     articles_with_keywords_and_probas = persistence.load_data()
 
@@ -87,8 +90,9 @@ def inference(request):
     use_active_learning_prio = django.conf.settings.ACTIVE_LEARNING_PRIO_PROBA < np.random.rand()
     print 'Use active learning prio?', use_active_learning_prio
 
+    inference_filename = cancer.persistence.models.persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
     persistence = cancer.persistence.models.PandasPersistence(
-        django.conf.settings.INFERENCE_ARTICLES_PATH
+        inference_filename
     )
     for article in request_body['articles']:
         article['KW'] = []
@@ -151,33 +155,33 @@ def inference(request):
     )
 
 
-def update_model(request):
-    """
-    moves inference documents with feedback to train corpus and updates the model including that data.
-    """
-    import pandas as pd
-    train_persistence = cancer.persistence.models.PandasPersistence(
-        django.conf.settings.TRAIN_ARTICLES_PATH
-    )
-    train = train_persistence.load_data()
-    inference = cancer.persistence.models.PandasPersistence(
-        django.conf.settings.INFERENCE_ARTICLES_PATH
-    ).load_data()
-
-    merged = pd.concat((train, inference))
-
-    train_persistence.update(merged)
-
-    # retrain model and save to disk
-    cancer.model_api.model.train_model(
-        merged,
-        django.conf.settings.MODEL_PATH,
-        django.conf.settings.LABEL_CODES_PATH,
-        django.conf.settings.FEATURE_ENCODER_PATH
-    )
-
-    return HttpResponse(status=200)
-
+# def update_model(request):
+#     """
+#     moves inference documents with feedback to train corpus and updates the model including that data.
+#     """
+#     import pandas as pd
+#     train_persistence = cancer.persistence.models.PandasPersistence(
+#         django.conf.settings.TRAIN_ARTICLES_PATH
+#     )
+#     train = train_persistence.load_data()
+#     inference = cancer.persistence.models.PandasPersistence(
+#         django.conf.settings.INFERENCE_ARTICLES_PATH
+#     ).load_data()
+#
+#     merged = pd.concat((train, inference))
+#
+#     train_persistence.update(merged)
+#
+#     # retrain model and save to disk
+#     cancer.model_api.model.train_model(
+#         merged,
+#         django.conf.settings.MODEL_PATH,
+#         django.conf.settings.LABEL_CODES_PATH,
+#         django.conf.settings.FEATURE_ENCODER_PATH
+#     )
+#
+#     return HttpResponse(status=200)
+#
 
 # def feedback(request):
 #     """
@@ -251,8 +255,10 @@ def feedback_batch(request):
     """
     request_body = json.loads(request.body)
 
+    current_inference_filename = cancer.persistence.models.latest_persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
+    print 'updating inference file', current_inference_filename
     persistence = cancer.persistence.models.PandasPersistence(
-        django.conf.settings.INFERENCE_ARTICLES_PATH
+        current_inference_filename
     )
     inference_articles = persistence.load_data()
 

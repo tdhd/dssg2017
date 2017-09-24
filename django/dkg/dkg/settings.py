@@ -131,8 +131,9 @@ PORT = 8080
 MODEL_PATH = '/tmp/model.pkl'
 LABEL_CODES_PATH = '/tmp/label_codes.pkl'
 
-TRAIN_ARTICLES_PATH = '/tmp/train.pkl'
-INFERENCE_ARTICLES_PATH = '/tmp/inference.pkl'
+ARTICLES_PERSISTENCE_FOLDER = '/tmp'
+TRAIN_ARTICLES_PATTERN = 'train_*.pkl'
+INFERENCE_ARTICLES_PATTERN = 'inference_*.pkl'
 INFERENCE_ARTICLES_RIS_PATH = '/tmp/inference.ris'
 
 # only show labels with a probability >= than this value
