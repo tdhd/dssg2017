@@ -133,6 +133,7 @@ def model_selection(X,y):
     # turn off warnings, usually there are some labels missing in the training set
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        # TODO: pipeline parameters (hashing vectorizer dimensionalities etc.) should also be searchable here
         text_clf = OneVsRestClassifier(SGDClassifier(loss="log", average=True, penalty='l1'))
         parameters = {'estimator__alpha': (np.logspace(-7,-4,4)).tolist()}
         # perform gridsearch to get the best regularizer
