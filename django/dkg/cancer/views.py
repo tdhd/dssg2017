@@ -153,7 +153,8 @@ def index(request):
         'results': results,
         'json_api': {
             'username': django.conf.settings.USER_NAME,
-            'password': django.conf.settings.PASSWORD
+            'password': django.conf.settings.PASSWORD,
+            'port': django.conf.settings.PORT
         }
     }
 

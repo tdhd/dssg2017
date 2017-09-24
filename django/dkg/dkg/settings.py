@@ -125,6 +125,8 @@ STATIC_URL = '/static/'
 # basic auth settings
 USER_NAME = '---'
 PASSWORD = '---'
+PORT = 8080
+
 
 MODEL_PATH = '/tmp/model.pkl'
 LABEL_CODES_PATH = '/tmp/label_codes.pkl'
