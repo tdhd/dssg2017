@@ -161,3 +161,7 @@ IGNORE_KEYWORDS = [
     "rohtext",
     "markiert"
 ]
+
+# how likely will the configured active learning prioritization be used?
+# if no active learning is selected, random ordering will be used
+ACTIVE_LEARNING_PRIO_PROBA = 0.5

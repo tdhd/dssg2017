@@ -5,6 +5,7 @@ import django.conf
 import cancer.persistence.models
 import scipy.special
 import numpy as np
+import cancer.active_learning.selection_strategies
 
 
 def train(request):
@@ -83,6 +84,9 @@ def inference(request):
 
     request_body = json.loads(request.body)
 
+    use_active_learning_prio = django.conf.settings.ACTIVE_LEARNING_PRIO_PROBA < np.random.rand()
+    print 'Use active learning prio?', use_active_learning_prio
+
     persistence = cancer.persistence.models.PandasPersistence(
         django.conf.settings.INFERENCE_ARTICLES_PATH
     )
@@ -131,12 +135,14 @@ def inference(request):
         }
         all_inference_articles.append(entry)
 
-    # TODO: make active learning strategy part of POST-request
-    # active learning component for sorting
-    import cancer.active_learning.selection_strategies
-    sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
-        all_inference_articles
-    )
+    if use_active_learning_prio:
+        sorted_articles = cancer.active_learning.selection_strategies.SelectionStrategies.default(
+            all_inference_articles
+        )
+    else:
+        from random import shuffle
+        sorted_articles = all_inference_articles
+        shuffle(sorted_articles)
 
     return JsonResponse(
         {

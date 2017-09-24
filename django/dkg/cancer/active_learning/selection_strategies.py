@@ -5,7 +5,7 @@ class SelectionStrategies(object):
 
     @staticmethod
     def default(article_predictions):
-        return SelectionStrategies.closest_to_decision_boundary(article_predictions)
+        return SelectionStrategies.uncertainty_sampling(article_predictions)
 
     @staticmethod
     def random(article_predictions):
@@ -19,7 +19,7 @@ class SelectionStrategies(object):
         return article_predictions
 
     @staticmethod
-    def closest_to_decision_boundary(article_predictions, descending=False):
+    def uncertainty_sampling(article_predictions, descending=False):
         """
         Return articles by average distances to decision boundaries.
 
