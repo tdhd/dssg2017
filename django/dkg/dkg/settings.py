@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'cancer'
+    'cancer',
+    'channels'
 ]
 
 MIDDLEWARE = [
@@ -144,3 +145,12 @@ FEATURE_ENCODER_PATH = '/tmp/feature_encoder_pipeline.pkl'
 
 # label pruning normalized value counts threshold
 LABEL_PRUNING_VALUE_COUNTS_THRESHOLD = 0.66
+
+
+# django channels config
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "asgiref.inmemory.ChannelLayer",
+        "ROUTING": "cancer.routing.channel_routing",
+    },
+}
