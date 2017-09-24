@@ -1,11 +1,13 @@
 import re
 
+import django.conf
+
 RISSTART = '\r'
 
-IGNORE_KW = [x.strip() for x in open("ignore_keywords.txt").readlines()]
 
 def contains_ignore_words(line):
-    return any([iw in line.lower() for iw in IGNORE_KW])
+    return any([iw in line.lower() for iw in django.conf.settings.IGNORE_KEYWORDS])
+
 
 def read_article(lines):
     '''

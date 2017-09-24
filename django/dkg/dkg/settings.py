@@ -144,3 +144,18 @@ FEATURE_ENCODER_PATH = '/tmp/feature_encoder_pipeline.pkl'
 
 # label pruning normalized value counts threshold
 LABEL_PRUNING_VALUE_COUNTS_THRESHOLD = 0.66
+
+IGNORE_KEYWORDS = [
+    "bereitgestellt",
+    "geschrieben",
+    "ausspielen",
+    "bestellen",
+    "bestellen,sofort",
+    "buch",
+    "fallbericht",
+    "leitlinie",
+    "review",
+    "studie",
+    "rohtext",
+    "markiert"
+]
