@@ -19,7 +19,8 @@ def read_article(lines):
         if match:
             key,value = line[:2], line[match.span()[1]:].strip()
             # Filtering out lines that contain to-be-ignored keywords
-            if not contains_ignore_words(line):
+            # only for KW lines
+            if (key == "KW" and not contains_ignore_words(line)) or key != "KW":
                 # keywords to list
                 if key in article: article[key] += [value]
                 else: article[key] = [value]
