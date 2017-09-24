@@ -6,7 +6,7 @@ import cancer.persistence.models
 import scipy.special
 import numpy as np
 import cancer.active_learning.selection_strategies
-import os
+import cancer.model_api.model
 
 
 def train(request):
@@ -83,7 +83,10 @@ def inference(request):
     :param request: HTTP-request carrying all RIS articles (without keywords)
     :return: json response with all of the predicted labels from the uploaded RIS articles.
     """
-    import cancer.model_api.model
+    def filename_with_prioritization_strategy(filename):
+        tokens = filename.split(".")
+        tokens[0] += '_sorting_prio_{}'.format('uncertainty_sampling' if use_active_learning_prio else 'random')
+        return '.'.join(tokens)
 
     request_body = json.loads(request.body)
 
@@ -91,6 +94,8 @@ def inference(request):
     print 'Use active learning prio?', use_active_learning_prio
 
     inference_filename = cancer.persistence.models.persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
+    inference_filename = filename_with_prioritization_strategy(inference_filename)
+
     persistence = cancer.persistence.models.PandasPersistence(
         inference_filename
     )
