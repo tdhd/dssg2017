@@ -91,7 +91,7 @@ def inference(request):
     request_body = json.loads(request.body)
 
     use_active_learning_prio = django.conf.settings.ACTIVE_LEARNING_PRIO_PROBA < np.random.rand()
-    print 'Use active learning prio?', use_active_learning_prio
+    print('Use active learning prio?', use_active_learning_prio)
 
     inference_filename = cancer.persistence.models.persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
     inference_filename = filename_with_prioritization_strategy(inference_filename)
