@@ -125,12 +125,15 @@ STATIC_URL = '/static/'
 # basic auth settings
 USER_NAME = '---'
 PASSWORD = '---'
+PORT = 8080
+
 
 MODEL_PATH = '/tmp/model.pkl'
 LABEL_CODES_PATH = '/tmp/label_codes.pkl'
 
-TRAIN_ARTICLES_PATH = '/tmp/train.pkl'
-INFERENCE_ARTICLES_PATH = '/tmp/inference.pkl'
+ARTICLES_PERSISTENCE_FOLDER = '/tmp'
+TRAIN_ARTICLES_PATTERN = 'train_*.pkl'
+INFERENCE_ARTICLES_PATTERN = 'inference_*.pkl'
 INFERENCE_ARTICLES_RIS_PATH = '/tmp/inference.ris'
 
 # only show labels with a probability >= than this value
@@ -144,3 +147,22 @@ FEATURE_ENCODER_PATH = '/tmp/feature_encoder_pipeline.pkl'
 
 # label pruning normalized value counts threshold
 LABEL_PRUNING_VALUE_COUNTS_THRESHOLD = 0.66
+
+IGNORE_KEYWORDS = [
+    "bereitgestellt",
+    "geschrieben",
+    "ausspielen",
+    "bestellen",
+    "bestellen,sofort",
+    "buch",
+    "fallbericht",
+    "leitlinie",
+    "review",
+    "studie",
+    "rohtext",
+    "markiert"
+]
+
+# how likely will the configured active learning prioritization be used?
+# if no active learning is selected, random ordering will be used
+ACTIVE_LEARNING_PRIO_PROBA = 0.5
