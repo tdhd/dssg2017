@@ -117,6 +117,7 @@ def inference(request):
     for index in range(articles.shape[0]):
         article = articles.ix[index]
         idcs = np.where(label_probas[index, :] >= django.conf.settings.INFERENCE_LABEL_THRESHOLD)
+        # idcs = np.where(labels_binarized[index, :].toarray().reshape(-1) == 1.0)
         article['KW'] = [
             (name, proba, 'INFERENCE')
             for name, proba in zip(label_names[idcs], label_probas[index, idcs][0])

@@ -28,18 +28,18 @@ class SelectionStrategies(object):
         :return: article_predictions sorted by mean distance to hyperplane.
         """
         for article in article_predictions:
-            mean_distance = numpy.average(
-                map(lambda entry: numpy.abs(entry['distance_to_hyperplane']), article['keywords'])
-            )
+            min_distance = 1e6
+            try:
+                min_distance = min(
+                    map(lambda entry: numpy.abs(entry['distance_to_hyperplane']), article['keywords'])
+                )
+            except:
+                pass
 
-            # if there are no keywords for this article, assign fallback value for sorting
-            if numpy.isnan(mean_distance):
-                article['mean_distance_to_hyperplane'] = 1e6
-            else:
-                article['mean_distance_to_hyperplane'] = mean_distance
+            article['min_distance_to_hyperplane'] = min_distance
 
         article_predictions.sort(
-            key=lambda e: e['mean_distance_to_hyperplane'],
+            key=lambda e: e['min_distance_to_hyperplane'],
             reverse=descending
         )
 
