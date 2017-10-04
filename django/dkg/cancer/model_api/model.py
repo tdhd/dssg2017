@@ -169,12 +169,10 @@ def train_model(articles_with_keywords_and_probas, clf_save_path, Y_classes_save
     X = encoder_pipeline.transform(articles_with_keywords_and_probas)
     Y, Y_classes = encode_labels_of(articles_with_keywords_and_probas)
 
-    print X.shape, Y.shape
     label_indicator = np.where(Y.sum(axis=1) > 0)[0]
-    print label_indicator
+    # only use samples which at least have one keyword
     X = X[label_indicator, :]
     Y = Y[label_indicator, :]
-    print X.shape, Y.shape
 
     # model selection
     clf = cancer.ovr.classify_cancer(X, Y, Y_classes)
