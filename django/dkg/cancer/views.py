@@ -49,12 +49,11 @@ def model(request):
     return render(request, 'cancer/model.html', context)
 
 
-def ui_ris_upload_adapter(df, article_set):
+def ui_ris_upload_adapter(df):
     """
     processes the parsed dataframe, s.t. it becomes use-able by the json api.
 
     :param df: RIS parsed pandas.DataFrame
-    :param article_set: either 'TRAIN' or 'INFERENCE'
     :return: {
         'body': 'json encoded data...'
     }
@@ -126,13 +125,13 @@ def index(request):
         df = df_from(request.FILES['file'].read())
         # train model, also dumps classifier and clear text label data to disk
         cancer.json_api.endpoints.train(
-            ui_ris_upload_adapter(df, 'TRAIN')
+            ui_ris_upload_adapter(df)
         )
     elif 'test' in request.POST:
         df = df_from(request.FILES['file'].read())
         # predictions is an instance of JsonResponse django
         predictions = cancer.json_api.endpoints.inference(
-            ui_ris_upload_adapter(df, 'INFERENCE')
+            ui_ris_upload_adapter(df)
         )
         predictions = json.loads(predictions.content)
 
