@@ -257,6 +257,7 @@
                                     predictions</a>
                                 <div id="model-keywords-{{ result.index }}" class="collapse">
                                     <ul class="list-group" id="ul-{{ result.index }}">
+                                        {% if result.labels|length > 0 %}
                                         {% for label, proba in result.labels %}
                                         <li id="{{ label }}-{{ result.index }}"
                                             class="list-group-item justify-content-between">
@@ -264,6 +265,12 @@
                                             <span class="badge badge-default badge-pill">{{ proba }}</span>
                                         </li>
                                         {% endfor %}
+                                        {% else %}
+                                        <li id="{{ label }}-{{ result.index }}"
+                                            class="list-group-item justify-content-between">
+                                            No keywords predicted
+                                        </li>
+                                        {% endif %}
                                     </ul>
                                 </div>
 

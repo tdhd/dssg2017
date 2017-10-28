@@ -62,7 +62,7 @@ def features_of(data):
     print("Vectorizing titles")
     titles = HashingVectorizer(n_features=2**8).fit_transform(data.T1.map(concat_list_))
     print("Vectorizing authors")
-    authors = HashingVectorizer(n_features=2**5).fit_transform(data.A1.map(concat_list_))
+    authors = HashingVectorizer(analyzer="char_wb",ngram_range=(1,4), n_features=2**10).fit_transform(data.A1.map(concat_list_))
     print("Vectorizing abstracts")
     abstracts = HashingVectorizer(n_features=2**15).fit_transform(data.N2.map(concat_list_))
     X = hstack((dates,titles,authors,abstracts))
@@ -134,89 +134,26 @@ def model_selection(X,y):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         # TODO: pipeline parameters (hashing vectorizer dimensionalities etc.) should also be searchable here
-        text_clf = OneVsRestClassifier(SGDClassifier(loss="log", average=True, penalty='l1'))
+        text_clf = OneVsRestClassifier(SGDClassifier(loss="log"))
         parameters = {'estimator__alpha': (np.logspace(-7,-4,4)).tolist()}
         # perform gridsearch to get the best regularizer
-        gs_clf = GridSearchCV(text_clf, parameters, cv=2, n_jobs=-1,verbose=4)
+        gs_clf = GridSearchCV(text_clf, parameters, cv=2, n_jobs=1, verbose=4, scoring='f1_weighted')
         gs_clf.fit(X, y)
         report(gs_clf.cv_results_)
-    return gs_clf.best_estimator_
-
-def compute_active_learning_curve(X_train,y_train,X_test,y_test,X_validation, y_validation, clf,percentage_samples=[1,2,5,10,15,30,50,100]):
-    '''
-    Emulate active learning with annotators:
-    for a given training, test and validation set, get the validation error by
-    training on training data only, then the score when trained on training and
-    test data and then the increasing validation score when adding more labelled
-    data, either with random selection or with active learning. The results are
-    the increase in scores with the respective sampling policy
-    '''
-    print('Computing active learning curve:')
-    clf = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(X_train, y_train)
-    baseline_low = label_ranking_average_precision_score(y_validation.toarray(), clf.predict_proba(X_validation))
-    clf_trained = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_test]), vstack([y_train, y_test]))
-    baseline_high = label_ranking_average_precision_score(y_validation.toarray(), clf_trained.predict_proba(X_validation))
-    print('\tBaseline on test: {}, baseline score on train and test {}'.format(baseline_low, baseline_high))
-
-    # score test data for active learning sorting
-    label_probas = clf.predict_proba(X_test)
-
-    # run a random sampling procedure for training with increasing amounts of labels
-    random_priorities = np.random.permutation(label_probas.shape[0])
-
-    random_learning_curve = []
-    for percentage in percentage_samples:
-        n_samples = int((percentage/100.) * X_test.shape[0])
-        X_labelled = X_test[random_priorities[:n_samples],:]
-        y_labelled = y_test[random_priorities[:n_samples],:]
-        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'), n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
-        current_score = label_ranking_average_precision_score(y_validation.toarray(), clf_current.predict_proba(X_validation))
-        print('\t(RANDOM) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
-        random_learning_curve.append(current_score)
-
-    # mean distance to hyperplane
-    dists = abs(logit(label_probas)).mean(axis=1)
-    # run active learning procedure for training with increasing amounts of labels
-    priorities = dists.argsort()
-
-    active_learning_curve = []
-    for percentage in percentage_samples:
-        n_samples = int((percentage/100.) * X_test.shape[0])
-        X_labelled = X_test[priorities[:n_samples],:]
-        y_labelled = y_test[priorities[:n_samples],:]
-        clf_current = OneVsRestClassifier(SGDClassifier(loss="log",alpha=clf.estimator.alpha, average=True, penalty='l1'),n_jobs=-1).fit(vstack([X_train, X_labelled]), vstack([y_train, y_labelled]))
-        current_score = label_ranking_average_precision_score(y_validation.toarray(), clf_current.predict_proba(X_validation))
-        print('\t(ACTIVE LEARNING) Trained on {} samples ({}%) from test set - reached {} ({}%)'.format(n_samples, percentage, current_score, np.round(100.0*(current_score - baseline_low)/(baseline_high-baseline_low))))
-        active_learning_curve.append(current_score)
-
-    return active_learning_curve, random_learning_curve, baseline_low, baseline_high
+    return gs_clf.best_estimator_, gs_clf.best_score_
 
 def classify_cancer(X, y, labelNames):
     '''
     Runs a multilabel classification experiment
     '''
-    # TODO: use pipeline with FeatureUnion
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
 
-    clf = model_selection(X_train, y_train)
+    clf, best_score = model_selection(X, y)
 
-    # predict test split to evaluate model
-    y_predicted = clf.predict(X_test)
-    # compute Scores
-    print(y_predicted.shape)
-    print(clf.predict_proba(X_test))
-
-    metrics = compute_scores(y_test, y_predicted, labelNames)
-    for metric in metrics:
-        print metric, metrics[metric]
+    metrics = {'cv_score': best_score}
 
     # dump results
     json.dump(metrics,open("multilabel_classification_metrics.json","wt"))
 
-    # retrain on all data
-    print("refitting clf on all data")
-    # clf = clf.best_estimator_.fit(X,y)
-    clf = clf.fit(X,y)
     return clf
     # # this assumes that
     # # - the feature extraction yields exactly the same number and ordering of samples
