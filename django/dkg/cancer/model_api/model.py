@@ -1,16 +1,16 @@
 import cPickle
 
 import cancer.models
-import cancer.ovr
+
 import django.conf
 import django.conf
-import scipy.sparse
 import sklearn.feature_extraction
 import sklearn.preprocessing
 from cancer.model_api.pipelining import ItemSelector
 from sklearn.externals import joblib
 from sklearn.pipeline import Pipeline, FeatureUnion
 import numpy as np
+import warnings
 
 
 class LabelBinarizerPipelineFriendly(sklearn.preprocessing.LabelBinarizer):
@@ -43,31 +43,31 @@ def encoder_pipeline_from(articles_with_keywords_and_probas):
 
                 ('abstract', Pipeline([
                     ('selector', ItemSelector(key='N2')),
-                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**12)),
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2 ** 12)),
                 ])),
 
                 ('title', Pipeline([
                     ('selector', ItemSelector(key='T1')),
-                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2 ** 8))
                 ])),
 
                 ('journal-abbrev', Pipeline([
                     ('selector', ItemSelector(key='JA')),
-                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2 ** 8))
                 ])),
 
                 ('journal-full', Pipeline([
                     ('selector', ItemSelector(key='JF')),
-                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2 ** 8))
                 ])),
 
                 ('publisher', Pipeline([
                     ('selector', ItemSelector(key='PB')),
-                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2 ** 8))
                 ])),
                 ('year', Pipeline([
                     ('selector', ItemSelector(key='Y1')),
-                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2**8))
+                    ('hasher', sklearn.feature_extraction.text.HashingVectorizer(n_features=2 ** 8))
                 ])),
 
                 # todo: probably should use pruning of publishers and years, too many distinct values
@@ -93,6 +93,7 @@ def encode_labels_of(articles_with_keywords_and_probas):
     :param articles_with_keywords_and_probas: pandas.DataFrame
     :return:
     """
+
     def preprocess_keywords(keywords):
         """
         Lower-case keyword tokens and remove dates and search sources keywords.
@@ -101,7 +102,8 @@ def encode_labels_of(articles_with_keywords_and_probas):
         :return: cleaned list of string keywords
         """
         keywords_filtered = keywords.apply(lambda kws: [kw[0].lower() for kw in kws])
-        keywords_filtered = keywords_filtered.apply(lambda kws: [kw for kw in kws if not kw.startswith('quelle,') and not kw.startswith('20')])
+        keywords_filtered = keywords_filtered.apply(
+            lambda kws: [kw for kw in kws if not kw.startswith('quelle,') and not kw.startswith('20')])
         return keywords_filtered
 
     def prune_keywords(keywords, p):
@@ -175,9 +177,40 @@ def train_model(articles_with_keywords_and_probas, clf_save_path, Y_classes_save
     Y = Y[label_indicator, :]
 
     # model selection
-    clf = cancer.ovr.classify_cancer(X, Y, Y_classes)
+
+    clf, best_score = model_selection(X, Y)
 
     # persistence
     joblib.dump(clf, clf_save_path)
     joblib.dump(encoder_pipeline, feature_encoder_path)
     cPickle.dump(Y_classes, open(Y_classes_save_path, 'w'))
+
+
+def model_selection(X, y):
+    '''
+    Runs model selection, returns fitted classifier
+    '''
+    # turn off warnings, usually there are some labels missing in the training set
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # TODO: pipeline parameters (hashing vectorizer dimensionalities etc.) should also be searchable here
+        text_clf = OneVsRestClassifier(SGDClassifier(loss="log"))
+        parameters = {'estimator__alpha': (np.logspace(-7, -4, 4)).tolist()}
+        # perform gridsearch to get the best regularizer
+        gs_clf = GridSearchCV(text_clf, parameters, cv=2, n_jobs=1, verbose=4, scoring='f1_weighted')
+        gs_clf.fit(X, y)
+        report(gs_clf.cv_results_)
+    return gs_clf.best_estimator_, gs_clf.best_score_
+
+
+# Utility function to report best scores
+def report(results, n_top=3):
+    for i in range(1, n_top + 1):
+        candidates = np.flatnonzero(results['rank_test_score'] == i)
+        for candidate in candidates:
+            print("Model with rank: {0}".format(i))
+            print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+                results['mean_test_score'][candidate],
+                results['std_test_score'][candidate]))
+            print("Parameters: {0}".format(results['params'][candidate]))
+            print("")
