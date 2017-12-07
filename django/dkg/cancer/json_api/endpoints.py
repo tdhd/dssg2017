@@ -262,7 +262,7 @@ def feedback_batch(request):
     request_body = json.loads(request.body)
 
     current_inference_filename = cancer.persistence.models.latest_persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
-    print 'updating inference file', current_inference_filename
+    print('updating inference file', current_inference_filename)
     persistence = cancer.persistence.models.PandasPersistence(
         current_inference_filename
     )

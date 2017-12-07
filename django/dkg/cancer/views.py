@@ -8,7 +8,7 @@ import django.conf
 from django.http import HttpResponse
 from django.shortcuts import render
 
-from ris import read_ris_lines, write_ris_lines
+from .ris import read_ris_lines, write_ris_lines
 
 
 def df_from(ris_contents):
@@ -182,6 +182,35 @@ def download_test_ris(request):
         )
         # response['X-Sendfile'] = smart_str(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH)
         response['Content-Disposition'] = 'attachment; filename=inference.ris'
+        # It's usually a good idea to set the 'Content-Length' header too.
+        # You can also set any other required headers: Cache-Control, etc.
+        return response
+
+
+def download_test_xslx(request):
+    """
+    loads inference pandas dataframe pickle, convert to excel and send to client
+    """
+    current_inference_filename = cancer.persistence.models.latest_persistence_filename(django.conf.settings.INFERENCE_ARTICLES_PATTERN)
+    persistence = cancer.persistence.models.PandasPersistence(
+        current_inference_filename
+    )
+    articles = persistence.load_data()
+
+    write_ris_lines(
+        django.conf.settings.INFERENCE_ARTICLES_RIS_PATH,
+        articles
+    )
+
+    articles.to_excel("/tmp/out.xlsx")
+
+    with open("/tmp/out.xlsx", 'r') as f:
+        contents = f.read()
+        response = HttpResponse(
+            contents, content_type='application/force-download'
+        )
+        # response['X-Sendfile'] = smart_str(django.conf.settings.INFERENCE_ARTICLES_RIS_PATH)
+        response['Content-Disposition'] = 'attachment; filename=inference.xlsx'
         # It's usually a good idea to set the 'Content-Length' header too.
         # You can also set any other required headers: Cache-Control, etc.
         return response

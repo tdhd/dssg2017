@@ -12,4 +12,5 @@ urlpatterns = [
     url(r'json/feedback_batch', json_api.feedback_batch, name='feedback_batch'),
 
     url(r'download_test_ris', views.download_test_ris, name='download_test_ris'),
+    url(r'download_test_xslx', views.download_test_xslx, name='download_test_xslx'),
 ]

@@ -116,13 +116,13 @@ def encode_labels_of(articles_with_keywords_and_probas):
         import pandas as pd
 
         kws = pd.DataFrame({'kw': list(itertools.chain(*keywords))})
-        print 'kws head', kws.head()
+        print('kws head', kws.head())
         csum_value_counts = kws.kw.value_counts(normalize=True).cumsum()
         cutoff = (csum_value_counts - p).abs().argmin()
-        print csum_value_counts, cutoff
-        print csum_value_counts.loc[:cutoff]
+        print(csum_value_counts, cutoff)
+        print(csum_value_counts.loc[:cutoff])
         valid_kws = list(csum_value_counts.loc[:cutoff].index.values)
-        print valid_kws
+        print(valid_kws)
         pruned_keywords = keywords.apply(lambda kws: [kw for kw in kws if kw in valid_kws])
         return pruned_keywords
 
@@ -148,7 +148,7 @@ def inference_with_model(articles, save_path, Y_classes_save_path, feature_encod
     encoder_pipeline = joblib.load(feature_encoder_path)
     X = encoder_pipeline.transform(articles)
 
-    print X.shape
+    print(X.shape)
 
     Y_classes = cPickle.load(open(Y_classes_save_path))
     clf = joblib.load(save_path)
