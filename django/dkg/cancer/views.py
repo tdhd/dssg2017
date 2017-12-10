@@ -196,11 +196,7 @@ def download_test_xslx(request):
         current_inference_filename
     )
     articles = persistence.load_data()
-
-    write_ris_lines(
-        django.conf.settings.INFERENCE_ARTICLES_RIS_PATH,
-        articles
-    )
+    articles['KW'] = articles.KW.apply(lambda kws: map(lambda kw: kw[0], kws))
 
     articles.to_excel("/tmp/out.xlsx")
 
