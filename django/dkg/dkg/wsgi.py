@@ -11,7 +11,7 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-from settings import USER_NAME, PASSWORD
+from .settings import USER_NAME, PASSWORD
 
 
 class AuthenticationMiddleware(object):
